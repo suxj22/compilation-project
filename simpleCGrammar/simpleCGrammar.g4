@@ -1,136 +1,149 @@
 grammar simpleCGrammar;
 
-// 语法分析部分
-prog: (include)* (structDef | arrayDef | varDef | funcDef)*;
+// ----------------- 语法 -----------------
 
-include: '#include' '<' LibraryName '>';
+prog: includes declarations functions;
 
-// 结构体定义
-structDef: 'struct' Identifier '{' structMember+ '}' ';';
+// ------------头文件----------
+includes: include*;
+include: '#include' '<' lib '>';
 
-structMember: (mType | mArray) Identifier (
-		',' (mType | mArray) Identifier
+// ----------变量声明----------
+declarations: declaration*;
+declaration: variableDeclaration | arrayDeclaration;
+
+// int a;  int a = 3, b = 2, c;
+variableDeclaration: (commonType) id ('=' expr)? (
+		',' id ('=' expr)?
 	)* ';';
+// int a[10], int a[3] = {1, 2, 3};
+arrayDeclaration:
+	commonType id '[' integer ']' ';'
+	| commonType id '[' integer ']' '=' '{' (
+		integer (',' integer)*
+	)? '}' ';';
 
-mStruct: 'struct' Identifier;
+// ----------函数定义----------
 
-// 数组定义
-arrayDef: mType Identifier '[' Integer (',' Integer)* ']' ';';
+functions: function*;
+// int add(int a, int b) { return a + b; }
+function: funccommonType id '(' parameters ')' '{' funcBody '}';
+// function : funccommonType id '(' parameters ')' '{' body '}' ;
+funccommonType: commonType | 'void';
 
-// 变量定义
-varDef:
-	mType Identifier ('=' expr)? (',' Identifier ('=' expr)?)* ';';
-
-// 函数定义
-funcDef: (mType | 'void' | mStruct) Identifier '(' params? ')' '{' funcBody '}';
-
-params: param (',' param)*;
-
-param: mType Identifier;
+// (int a),(int a, int b)
+parameters: parameter (',' parameter)* |; // |  表示没有参数
+parameter: commonType id;
 
 // 函数体
-funcBody: (statement | expr)*;
+funcBody: body returnBlock?;
 
-statement:
-	exprStatement
-	| compoundStatement
-	| selectionStatement
-	| iterationStatement
-	| returnStatement;
+// body -> block(语句块) or func(函数调用)
+body: (block | func ';')*;
 
-// 表达式语句
-exprStatement: expr ';';
+// 语句块：声明语句、赋值语句、if语句、while语句、for语句、return语句
+block:
+	declaration
+	| assignBlock
+	| ifBlocks
+	| whileBlock
+	| forBlock
+	| returnBlock; // | breakBlock | continueBlock ;
 
-// 复合语句
-compoundStatement: '{' statement* '}';
+// 赋值语句 a = 1;, a[3] = 3;
+assignBlock: (id | arrayItem) '=' expr ';';
+arrayItem: id '[' expr ']';
 
-// 选择语句
-selectionStatement:
-	'if' '(' expr ')' statement ('else' statement)?;
+// if 语句
+ifBlocks: ifBlock (elseIfBlock)* (elseBlock)?;
+ifBlock: 'if' '(' condition ')' '{' body '}';
+elseIfBlock: 'else' 'if' '(' condition ')' '{' body '}';
+elseBlock: 'else' '{' body '}';
 
-// 循环语句
-iterationStatement:
-	'while' '(' expr ')' statement
-	| 'for' '(' (exprStatement | ';') (expr)? (';' expr)? ')' statement;
+// while 语句
+whileBlock: 'while' '(' condition ')' '{' body '}';
 
-// 返回语句
-returnStatement: 'return' (expr)? ';';
+// for 语句
+forBlock:
+	'for' '(' forInit ';' condition ';' forUpdate ')' (
+		'{' body '}'
+		| ';'
+	);
+
+forInit: id '=' expr (',' forInit)* |;
+forUpdate: id '=' expr (',' forUpdate)* |;
+
+// return 语句
+returnBlock: 'return' (id | integer)? ';';
+
+condition: expr;
 
 expr:
-	primaryExpr
-	| expr ArithmeticOperator expr
-	| expr RelationalOperator expr
-	| expr LogicalOperator expr
-	| '!' expr
-	| '(' expr ')';
+	'(' expr ')'								# parens
+	| op = '!' expr								# Neg
+	| expr op = ( '*' | '/' | '%') expr			# MulDiv
+	| expr op = ( '+' | '-') expr				# AddSub
+	| expr op = ( '>=' | '<=' | '>' | '<') expr	# Compare
+	| expr op = ( '==' | '!=') expr				# Equal
+	| expr op = '&&' expr						# And
+	| expr op = '||' expr						# Or
+	| id										# Identifier
+	| (op = '-')? integer						# exprint
+	| (op = '-')? double						# exprdouble
+	| char										# exprchar
+	| bool										# exprbool
+	| arrayItem									# exprarrayitem
+	| string									# exprstring
+	| func										# exprfunction;
 
-// 基本表达式
-primaryExpr:
-	Identifier
-	| Integer
-	| Double
-	| Char
-	| String
-	| 'true'
-	| 'false'
-	| Identifier '(' (expr (',' expr)*)? ')';
+func: standardFunc | userFunc;
+// 自定义函数
+userFunc: id '(' arguments ')';
+arguments: argument (',' argument)* |;
+argument: id | integer | double | char | bool | string;
+// 标准库函数
+standardFunc:
+	strlenFunc
+	| printfFunc
+	| scanfFunc
+	| atoiFunc
+	| getsFunc;
+strlenFunc: 'strlen' '(' id ')';
+printfFunc: 'printf' '(' string (',' expr)* ')';
+scanfFunc: 'scanf' '(' string (',' '&'? (id | arrayItem))* ')';
+atoiFunc: 'atoi' '(' id ')';
+getsFunc: 'gets' '(' id ')';
 
-mType: 'int' | 'double' | 'char' | 'bool';
+commonType: 'int' | 'bool' | 'double' | 'char' | 'void';
 
-mArray: mType Identifier '[' Integer ']';
+id: Identifier;
 
-// 词法分析部分
-Integer: '-'? [0-9]+; // 支持负数
-Double: '-'? [0-9]+ ('.' [0-9]+)?;
-Char: '\'' ('\\' [btnfr"'\\] | ~['\\]) '\''; // 支持转义字符
-String: '"' .*? '"';
+integer: Integer;
+double: Double;
+char: Char;
+bool: Bool;
+string: String;
+
+// -------------------------- 词法 ------------------------- 库文件名
+
+// 整数 浮点数 字符 布尔值 字符串
+Integer: [0-9]+;
+Double: [0-9]+ '.' [0-9]+;
+Char: '\'' . '\'' | '\'\\' '0' '\'';
 Bool: 'true' | 'false';
+String: '"' .*? '"';
 
-// 变量名和函数名
-Identifier: [a-zA-Z_] [a-zA-Z_0-9]*;
+// 变量名
+Identifier: [a-zA-Z_][0-9A-Za-z_]*;
 
-// 运算符
-ArithmeticOperator: '+' | '-' | '*' | '/' | '%';
-RelationalOperator: '==' | '!=' | '<' | '<=' | '>' | '>=';
-LogicalOperator: '&&' | '||' | '!';
-AssignmentOperator:
-	'='
-	| '+='
-	| '-='
-	| '*='
-	| '/='
-	| '%='
-	| '<<'
-	| '>>';
+// Lib 必须在 Identifier 之后，因为 Lib 也是 Identifier 的一种， 如果放在 Identifier 之前，会优先匹配 Lib，导致 Identifier 无法匹配
+Lib: [a-zA-Z]+ '.h'?;
 
-// 关键字
-Keyword:
-	'if'
-	| 'else'
-	| 'while'
-	| 'for'
-	| 'return'
-	| 'void'
-	| 'int'
-	| 'double'
-	| 'char'
-	| 'bool';
+// --skip--
+Whitespace: [ \t]+ -> skip;
 
-// 标点符号
-LParen: '(';
-RParen: ')';
-LBrace: '{';
-RBrace: '}';
-LBracket: '[';
-RBracket: ']';
-Comma: ',';
-Semi: ';';
-Colon: ':';
+Newline: ( '\r' '\n'? | '\n') -> skip;
 
-// 注释部分
-LineComment: '//' ~[\r\n]* -> skip;
 BlockComment: '/*' .*? '*/' -> skip;
-WS: [ \t\r\n]+ -> skip;
 
-// 用于匹配头文件名
-LibraryName: [a-zA-Z_][a-zA-Z0-9_]* '.h'?;
+LineComment: '//' ~[\r\n]* -> skip;
