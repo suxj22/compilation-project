@@ -75,7 +75,7 @@ primaryExpr:
 	| 'false'
 	| Identifier '(' (expr (',' expr)*)? ')';
 
-mType: Integer | Double | Char | String | Bool;
+mType: 'int' | 'double' | 'char' | 'bool';
 
 mArray: mType Identifier '[' Integer ']';
 
