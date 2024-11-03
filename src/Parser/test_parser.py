@@ -1,7 +1,7 @@
 import sys
 from antlr4 import *
-from generated.CLexer import CLexer
-from generated.CParser import CParser
+from CLexer import CLexer
+from CParser import CParser
 
 def main(argv):
     if len(argv) < 2:
