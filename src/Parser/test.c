@@ -1,4 +1,4 @@
-int kmp()
+int kmp(int b)
 {
     return 1;
 }
@@ -6,16 +6,17 @@ int main()
 {
     int a = 5;
     float b = 3.14;
+    --a+++=3;
     char c = 'A';
     long long hhh = 2314234;
     // string message = "Hello, World!";
     int arr[10];
-    int ggg = kmp();
+    int ggg = kmp(a, 77777);
     for (int i = 0; i < 10; i++)
     {
         arr[i] = i;
     }
-    int *b = (int *)hhh;
+    // int *b = (int *)hhh;
     char *c = "Hello, World!";
     double b[10] = {
         0.0,
@@ -26,15 +27,15 @@ int main()
         float b;
     };
 
-    switch (a)
-    {
-    case 3:
-        /* code */
-        break;
+    // switch (a)
+    // {
+    // case 3:
+    //     /* code */
+    //     break;
 
-    default:
-        break;
-    }
+    // default:
+    //     break;
+    // }
 
     if (a > 0)
     {
