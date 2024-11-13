@@ -1,11 +1,19 @@
 grammar C;
 
 compilationUnit
-    : (functionDefinition | declaration)+ EOF
+    : translationUnit? EOF
+    ;
+
+translationUnit
+    : (functionDefinition | declaration)+
     ;
 
 functionDefinition
-    : declarationSpecifiers declarator compoundStatement
+    : declarationSpecifiers? declarator compoundStatement
+    ;
+
+declarationList
+    : declaration+
     ;
 
 declaration
@@ -13,11 +21,12 @@ declaration
     ;
 
 declarationSpecifiers
-    : (typeSpecifier | storageClassSpecifier)*
+    // : (typeSpecifier | storageClassSpecifier)+
+    : typeSpecifier+
     ;
 
 typeSpecifier
-    : 'void' | 'char' | 'short' | 'int' | 'long' | 'float' | 'double' | 'signed' | 'unsigned' | 'bool'
+    : 'void' | 'char' | 'short' | 'int' | 'long' | 'float' | 'double' | 'signed' | 'unsigned'
     | structSpecifier
     ;
 
@@ -33,6 +42,7 @@ structDeclaration
     : declarationSpecifiers initDeclaratorList? ';'
     ;
 
+// 以下一个可删
 storageClassSpecifier
     : 'typedef' | 'extern' | 'static' | 'auto' | 'register'
     ;
@@ -52,14 +62,16 @@ declarator
 directDeclarator
     : Identifier
     | '(' declarator ')'
-    | directDeclarator '[' constantExpression? ']'
-    | directDeclarator '(' parameterTypeList? ')'
+    | directDeclarator '[' conditionalExpression? ']'
+    | directDeclarator '(' parameterList? ')'
     ;
 
 pointer
-    : '*' typeQualifierList? pointer?
+    // : '*' typeQualifierList? pointer?
+    : ('*')+
     ;
 
+// 以下三个可删
 typeQualifierList
     : typeQualifier+
     ;
@@ -82,7 +94,7 @@ parameterDeclaration
 
 initializer
     : assignmentExpression
-    | '{' initializerList? ','? '}'
+    | '{' initializerList? ','? '}' // 数组初始化
     ;
 
 initializerList
@@ -107,19 +119,7 @@ logicalOrExpression
     ;
 
 logicalAndExpression
-    : inclusiveOrExpression ('&&' inclusiveOrExpression)*
-    ;
-
-inclusiveOrExpression
-    : exclusiveOrExpression ('|' exclusiveOrExpression)*
-    ;
-
-exclusiveOrExpression
-    : andExpression ('^' andExpression)*
-    ;
-
-andExpression
-    : equalityExpression ('&' equalityExpression)*
+    : equalityExpression ('&&' equalityExpression)*
     ;
 
 equalityExpression
@@ -127,11 +127,7 @@ equalityExpression
     ;
 
 relationalExpression
-    : shiftExpression (('<' | '>' | '<=' | '>=') shiftExpression)*
-    ;
-
-shiftExpression
-    : additiveExpression (('<<' | '>>') additiveExpression)*
+    : additiveExpression (('<' | '>' | '<=' | '>=') additiveExpression)*
     ;
 
 additiveExpression
@@ -139,20 +135,24 @@ additiveExpression
     ;
 
 multiplicativeExpression
-    : castExpression (('*' | '/' | '%') castExpression)*
-    ;
-
-castExpression
-    : '(' typeName ')' castExpression
-    | unaryExpression
+    : unaryExpression (('*' | '/' | '%') unaryExpression)*
     ;
 
 unaryExpression
-    : ('++' | '--')? postfixExpression
+    : ('++' | '--')? (postfixExpression | unaryOperator unaryExpression)
+    ;
+
+unaryOperator
+    : '&' | '*' | '+' | '-' | '~' | '!'
     ;
 
 postfixExpression
-    : primaryExpression (('[' expression ']') | ('(' argumentExpressionList? ')') | '.' Identifier | '->' Identifier | '++' | '--')*
+    : primaryExpression (('[' expression ']') 
+                        | ('(' argumentExpressionList? ')') 
+                        | '.' Identifier 
+                        | '->' Identifier 
+                        | '++' 
+                        | '--')*
     ;
 
 primaryExpression
@@ -163,12 +163,16 @@ primaryExpression
     | '(' expression ')'
     ;
 
+constantExpression
+    : conditionalExpression
+    ;
+
 argumentExpressionList
     : assignmentExpression (',' assignmentExpression)*
     ;
 
-constantExpression
-    : conditionalExpression
+compoundStatement
+    : '{' (declaration | statement)* '}'
     ;
 
 statement
@@ -186,17 +190,13 @@ labeledStatement
     | 'default' ':' statement
     ;
 
-compoundStatement
-    : '{' (declaration | statement)* '}'
-    ;
-
 expressionStatement
     : expression? ';'
     ;
 
 selectionStatement
     : 'if' '(' expression ')' statement ('else' statement)?
-    | 'switch' '(' expression ')' statement
+    // | 'switch' '(' expression ')' statement
     ;
 
 iterationStatement
@@ -206,11 +206,7 @@ iterationStatement
     ;
 
 forCondition
-    : (forDeclaration | expression?) ';' forExpression? ';' forExpression?
-    ;
-
-forExpression
-    : assignmentExpression (',' assignmentExpression)*
+    : (forDeclaration | expression?) ';' expression? ';' expression?
     ;
 
 forDeclaration
@@ -226,10 +222,6 @@ jumpStatement
 
 assignmentOperator
     : '=' | '*=' | '/=' | '%=' | '+=' | '-=' | '<<=' | '>>=' | '&=' | '^=' | '|='
-    ;
-
-typeName
-    : typeSpecifier pointer? typeQualifierList?
     ;
 
 Identifier
