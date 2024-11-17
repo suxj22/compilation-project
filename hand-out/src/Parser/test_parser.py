@@ -1,10 +1,9 @@
 import sys
-import json
 import yaml  # 需要先安装 PyYAML: pip install pyyaml
 import os
 from datetime import datetime
 from antlr4 import *
-from antlr4.tree.Tree import TerminalNodeImpl  # 确保正确导入 TerminalNode 类型
+from antlr4.tree.Tree import TerminalNodeImpl
 from generated.CLexer import CLexer
 from generated.CParser import CParser
 
@@ -47,8 +46,6 @@ def main(argv):
     # 预处理：读取文件内容并移除所有以 #include 开头的行
     with open(input_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-
-    # 移除以 #include 开头的行，忽略前导空白
     filtered_lines = [line for line in lines if not line.lstrip().startswith("#include")]
     filtered_text = ''.join(filtered_lines)
 
