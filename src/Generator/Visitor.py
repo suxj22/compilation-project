@@ -559,6 +559,13 @@ class Visitor(CVisitor):
             return self.visitExpressionStatement(child)
         elif isinstance(child, CParser.JumpStatementContext):
             return self.visitJumpStatement(child)
+        elif isinstance(child, CParser.CompoundStatementContext):
+            return self.visitCompoundStatement(child)
+        elif isinstance(child, CParser.LabeledStatementContext):
+            # 可以根据需要处理标签语句
+            return
+        elif isinstance(child, CParser.IterationStatementContext):
+            return self.visitIterationStatement(child)
         # 其他语句类型的处理...
 
     def visitExpressionStatement(self, ctx: CParser.ExpressionStatementContext):
@@ -813,3 +820,234 @@ class Visitor(CVisitor):
         """
         # 假设 val 是变量名，此时 visitPrimaryExpression 返回的是地址
         return val
+    
+    # ——————————————————循环部分————————————————————
+    def visitIterationStatement(self, ctx: CParser.IterationStatementContext):
+        """
+        iterationStatement
+            : WHILE LEFT_PAREN expression RIGHT_PAREN statement
+            | DO statement WHILE LEFT_PAREN expression RIGHT_PAREN SEMI
+            | FOR LEFT_PAREN forCondition RIGHT_PAREN statement
+        """
+        builder = self.Builders[-1]
+        func = builder.function
+
+        if ctx.WHILE():
+            # while(expr) stmt
+            cond_bb = func.append_basic_block('while_cond')
+            body_bb = func.append_basic_block('while_body')
+            end_bb = func.append_basic_block('while_end')
+
+            # 先跳转到cond块
+            builder.branch(cond_bb)
+            builder.position_at_end(cond_bb)
+
+            # 计算条件表达式
+            cond_val = self.visitExpression(ctx.expression())
+            cond_val_i1 = self.castToBoolForCondition(cond_val)
+            builder.cbranch(cond_val_i1, body_bb, end_bb)
+
+            # 压栈当前循环信息（break和continue跳转点）
+            self.loop_stack.append({'break': end_bb, 'continue': cond_bb})
+
+            # 处理循环体
+            builder.position_at_end(body_bb)
+            self.visitStatement(ctx.statement())
+
+            # 如果循环体没有终止指令，则跳转回条件判断
+            if not builder.block.is_terminated:
+                builder.branch(cond_bb)
+
+            # 出栈
+            self.loop_stack.pop()
+
+            builder.position_at_end(end_bb)
+
+        elif ctx.DO():
+            # do stmt while(expr);
+            body_bb = func.append_basic_block('do_body')
+            cond_bb = func.append_basic_block('do_cond')
+            end_bb = func.append_basic_block('do_end')
+
+            # 先跳转到body块
+            builder.branch(body_bb)
+            builder.position_at_end(body_bb)
+
+            # 压栈循环信息
+            self.loop_stack.append({'break': end_bb, 'continue': cond_bb})
+
+            # 执行循环体
+            self.visitStatement(ctx.statement())
+
+            # 如果body没有终止，跳到cond
+            if not builder.block.is_terminated:
+                builder.branch(cond_bb)
+
+            builder.position_at_end(cond_bb)
+
+            # 条件检查
+            cond_val = self.visitExpression(ctx.expression())
+            cond_val_i1 = self.castToBoolForCondition(cond_val)
+            builder.cbranch(cond_val_i1, body_bb, end_bb)
+
+            # 出栈
+            self.loop_stack.pop()
+
+            builder.position_at_end(end_bb)
+
+        elif ctx.FOR():
+            # for( forCondition ) stmt
+            # forCondition : (forDeclaration | expression?) SEMI expression? SEMI expression?
+            init_bb = builder.block
+            cond_bb = func.append_basic_block('for_cond')
+            body_bb = func.append_basic_block('for_body')
+            incr_bb = func.append_basic_block('for_incr')
+            end_bb = func.append_basic_block('for_end')
+
+            # 解析forCondition
+            init_expr, cond_expr, incr_expr = self.visitForCondition(ctx.forCondition())
+
+            # 执行初始化（在当前块中）
+            if init_expr is not None:
+                # init_expr可能是一个语句结果或None
+                pass
+
+            # 跳转到条件块
+            builder.branch(cond_bb)
+            builder.position_at_end(cond_bb)
+
+            # 计算条件表达式，如果没有条件表达式则视为true
+            if cond_expr is not None:
+                cond_val = cond_expr
+                cond_val = self.castToBoolForCondition(cond_val)
+            else:
+                # 无条件表达式则永远为真
+                cond_val = ir.Constant(ir.IntType(1), 1)
+
+            builder.cbranch(cond_val, body_bb, end_bb)
+
+            # 压栈循环信息
+            self.loop_stack.append({'break': end_bb, 'continue': incr_bb})
+
+            # 处理循环体
+            builder.position_at_end(body_bb)
+            self.visitStatement(ctx.statement())
+
+            # 如果循环体没终止，跳到增量块
+            if not builder.block.is_terminated:
+                builder.branch(incr_bb)
+
+            # 增量块
+            builder.position_at_end(incr_bb)
+            if incr_expr is not None:
+                # 执行增量表达式
+                _ = incr_expr
+            # 增量完跳转cond
+            builder.branch(cond_bb)
+
+            # 出栈
+            self.loop_stack.pop()
+
+            # 最终块
+            builder.position_at_end(end_bb)
+
+
+    def visitForCondition(self, ctx: CParser.ForConditionContext):
+        """
+        forCondition
+            : (forDeclaration | expression?) SEMI expression? SEMI expression?
+        """
+        # 解析for三个部分: init, cond, incr
+        init_expr = None
+        cond_expr = None
+        incr_expr = None
+
+        builder = self.Builders[-1]
+
+        # 第一部分：forDeclaration 或 expression?
+        # ctx的子结构是: (forDeclaration|expression?) SEMI expression? SEMI expression?
+        # grammar中 forCondition定义:
+        # forCondition
+        #   : (forDeclaration | expression?) SEMI expression? SEMI expression?
+        #
+        # 如果第一个部分是 forDeclaration 则 ctx.forDeclaration() 存在
+        # 否则就看看ctx.expression(0)
+        if ctx.forDeclaration():
+            # 执行变量声明（可能有初始化）
+            self.visitForDeclaration(ctx.forDeclaration())
+            # 没有显式返回值（init_expr可以设为None）
+        else:
+            if ctx.expression(0):
+                init_expr = self.visitExpression(ctx.expression(0))
+
+        # 第二部分： expression? (条件表达式)
+        # forCondition 中的第二个 expression是索引1
+        # 判断是否存在ctx.expression(1)
+        semi_count = 0
+        if ctx.SEMI():
+            semi_count = len(ctx.SEMI())
+
+        # 条件表达式在语法上是 (forDeclaration|expr?) SEMI expression? SEMI expression?
+        # 如果有forDeclaration，则条件表达式是 expression(0)
+        # 如果没有forDeclaration，则条件表达式是 expression(1)
+
+        # 分情况：
+        # 已经判断过第一个部分，如果是forDeclaration:
+        #     init_expr = None
+        #     条件表达式在 expression(0)
+        # 如果是expression?:
+        #     init_expr在expression(0)
+        #     条件表达式在expression(1)
+        expr_indices = []
+        if ctx.expression():
+            expr_indices = list(range(len(ctx.expression())))
+
+        if ctx.forDeclaration():
+            # forDeclaration后面是 SEMI expression? SEMI expression?
+            # 条件表达式应该在expression(0)
+            if len(expr_indices) > 0:
+                cond_expr = self.visitExpression(ctx.expression(0))
+            # 增量表达式在expression(1)
+            if len(expr_indices) > 1:
+                incr_expr = self.visitExpression(ctx.expression(1))
+        else:
+            # 没有forDeclaration
+            # init_expr 在expression(0)
+            # 条件表达式在expression(1)
+            # 增量表达式在expression(2)
+            if len(expr_indices) > 1:
+                cond_expr = self.visitExpression(ctx.expression(1))
+            if len(expr_indices) > 2:
+                incr_expr = self.visitExpression(ctx.expression(2))
+
+        return init_expr, cond_expr, incr_expr
+
+    def visitForDeclaration(self, ctx: CParser.ForDeclarationContext):
+        """
+        forDeclaration
+            : declarationSpecifiers initDeclaratorList?
+        """
+        # 相当于与普通declaration相似的处理
+        # 直接调用visitDeclaration类似逻辑
+        # 不同点是这里并不需要SEMICOLON, 因为在forCondition中已经有
+        t = self.getTypeFromDeclarationSpecifiers(ctx.declarationSpecifiers())
+
+        if ctx.initDeclaratorList():
+            for init_d in ctx.initDeclaratorList().initDeclarator():
+                name = self.getIdentifierFromDeclarator(init_d.declarator())
+                if name is None:
+                    continue
+                builder = self.Builders[-1]
+                var_alloca = builder.alloca(t, name=name)
+                self.SymbolTable.add_item(name, var_alloca)
+                if init_d.initializer():
+                    val = self.visitInitializer(init_d.initializer())
+                    # 如果 val 是布尔表达式，确保是 i32 类型
+                    if isinstance(val.type, ir.IntType) and val.type.width == 1:
+                        val = self.castToBoolForExpr(val)
+                    builder.store(val, var_alloca)
+        else:
+            # 没有initDeclaratorList，仅声明类型？
+            # for中较少出现这种无名声明，如果出现，可以忽略或仅为类型占位
+            pass
+        return
