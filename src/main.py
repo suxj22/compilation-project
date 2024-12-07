@@ -1,12 +1,14 @@
 import sys
+
+import sys
 import json
 import yaml  # 需要先安装 PyYAML: pip install pyyaml
 import os
 from datetime import datetime
 from antlr4 import *
 from antlr4.tree.Tree import TerminalNodeImpl  # 确保正确导入 TerminalNode 类型
-from generated.CLexer import CLexer
-from generated.CParser import CParser
+from Parser.generated.CLexer import CLexer
+from Parser.generated.CParser import CParser
 from Generator.Visitor import Visitor
 def tree_to_dict(tree, parser):
     """
@@ -108,3 +110,11 @@ def generate(argv):
     llvm_output_filename = input_filename + ".ll"
     visitor.save(llvm_output_filename)
 
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("Usage: python3 test_parser.py <input-file>")
+        sys.exit(1)
+
+    generate(sys.argv)
