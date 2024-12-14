@@ -1,0 +1,7 @@
+.antlr/
+generated/
+output/
+src/Parser/__pycache__/
+src/Parser/output/
+.vscode
+.DS_Store
