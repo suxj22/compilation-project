@@ -117,4 +117,9 @@ if __name__ == '__main__':
         print("Usage: python3 test_parser.py <input-file>")
         sys.exit(1)
 
-    generate(sys.argv)
+    # 输出重定向到文件，便于调试
+    with open('debug.txt', 'w') as f:
+        original_stdout = sys.stdout
+        sys.stdout = f        
+        generate(sys.argv)
+        sys

@@ -8,6 +8,43 @@ from antlr4.tree.Tree import TerminalNodeImpl  # 确保正确导入 TerminalNode
 from generated.CLexer import CLexer
 from generated.CParser import CParser
 from Generator.Visitor import Visitor
+
+header_to_functions = {
+    "stdio.h": [
+        "int printf(const char *format, ...);",
+        "int scanf(const char *format, ...);"
+        "char *gets(char *str);",
+    ],
+    "stdlib.h": [
+        "int atoi(const char *str);",
+        
+    ],
+    "string.h": [
+        "int strlen(const char *str);",
+    ],
+}
+
+def process_includes(lines, header_to_functions):
+    """
+    解析 #include 语句，并将其替换为函数声明。
+    """
+    processed_lines = []
+    for line in lines:
+        stripped_line = line.strip()
+        if stripped_line.startswith("#include"):
+            # 提取头文件名
+            start_idx = stripped_line.find("<")
+            end_idx = stripped_line.find(">")
+            if start_idx != -1 and end_idx != -1:
+                header_name = stripped_line[start_idx + 1:end_idx]
+                # 替换为函数声明
+                if header_name in header_to_functions:
+                    processed_lines.extend(header_to_functions[header_name])
+        else:
+            processed_lines.append(line)
+    return processed_lines
+
+
 def tree_to_dict(tree, parser):
     """
     将解析树转换为嵌套字典。
@@ -48,9 +85,8 @@ def generate(argv):
     with open(input_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
 
-    # 移除以 #include 开头的行，忽略前导空白
-    filtered_lines = [line for line in lines if not line.lstrip().startswith("#include")]
-    filtered_text = ''.join(filtered_lines)
+    processed_lines = process_includes(lines, header_to_functions)
+    filtered_text = '\n'.join(processed_lines)
 
     # 将过滤后的文本传递给 ANTLR
     input_stream = InputStream(filtered_text)

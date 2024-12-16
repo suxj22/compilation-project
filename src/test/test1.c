@@ -1,5 +1,8 @@
 
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 int factorial(int n) {
     // if-else 选择语句
     if (n <= 1) {
@@ -64,6 +67,22 @@ int main() {
     add(1, 2);
     x + y;
     
+    char chr = 'a';
+    // 字符串
+    char str[] = "Hello, world!";
+    int len = strlen(str);
+    int in = atoi(str);
+    printf("%s\n", str);
+    printf("aaa");
+    scanf ("%d", &in);
+    gets(str);
+    // 数组
+    // int arr[3] = {1, 2, 3};
+    // double arr2[] = {1.2, 2.3, 3.4};
+    // char arr3[3];
+    // arr3[0] = 'a';
+    // arr3[1] = 'b';
+    // arr3[2] = 'c';
     // return 语句
     return 0;
 }

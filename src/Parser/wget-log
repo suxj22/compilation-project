@@ -1,7 +1,0 @@
---2024-12-14 19:30:06--  https://www.antlr.org/download/antlr-4.13.0-complete.jar
-Resolving www.antlr.org (www.antlr.org)... 185.199.108.153, 185.199.111.153, 185.199.110.153, ...
-Connecting to www.antlr.org (www.antlr.org)|185.199.108.153|:443... failed: Connection timed out.
-Connecting to www.antlr.org (www.antlr.org)|185.199.111.153|:443... connected.
-HTTP request sent, awaiting response... 200 OK
-Length: 2148972 (2.0M) [application/java-archive]
-Saving to: ‘antlr-4.13.0-complete.jar.1’
