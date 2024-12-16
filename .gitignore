@@ -5,3 +5,5 @@ src/Parser/__pycache__/
 src/Parser/output/
 .vscode
 .DS_Store
+__pycache__/
+debug.txt

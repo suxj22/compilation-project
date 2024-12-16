@@ -160,7 +160,8 @@ postfixExpression
     ;
 
 primaryExpression
-    : Identifier
+    : stdFunction
+    | Identifier
     | Constant
     | CharacterConstant
     | StringLiteral
@@ -223,6 +224,43 @@ jumpStatement
 
 assignmentOperator
     : ASSIGN | STAR_ASSIGN | DIV_ASSIGN | MOD_ASSIGN | PLUS_ASSIGN | MINUS_ASSIGN
+    ;
+
+stdFunction
+    : strlenFunction 
+    | atoiFunction 
+    | printfFunction 
+    | scanfFunction 
+    | getsFunction
+    ;
+
+//strlen
+strlenFunction 
+    : 'strlen' LEFT_PAREN Identifier RIGHT_PAREN
+    ;
+
+//atoi
+atoiFunction 
+    : 'atoi' LEFT_PAREN Identifier RIGHT_PAREN
+    ;
+
+// scanf
+scanfFunction
+    : 'scanf' LEFT_PAREN StringLiteral (COMMA addressOfVariable)* RIGHT_PAREN
+    ;
+
+addressOfVariable
+    : AND (Identifier | postfixExpression)
+    ;
+
+//printf
+printfFunction
+    : 'printf' LEFT_PAREN StringLiteral (COMMA expression)* RIGHT_PAREN
+    ;
+
+//gets
+getsFunction
+    : 'gets' LEFT_PAREN expression RIGHT_PAREN
     ;
 
 // Lexer rules

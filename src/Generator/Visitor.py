@@ -3,8 +3,10 @@ from Parser.generated.CVisitor import CVisitor
 from llvmlite import ir,binding
 from Generator.SymbolTable import SymbolTable
 from Generator.SemanticError import SemanticError
+from antlr4.tree.Tree import TerminalNodeImpl  
 
 # 定义一些LLVM类型作为示例，可根据需求扩展
+int64 = ir.IntType(64)
 int32 = ir.IntType(32)
 int8 = ir.IntType(8)
 int1 = ir.IntType(1)
@@ -48,6 +50,246 @@ class Visitor(CVisitor):
                 self.visitDeclaration(child)
         return
     
+    def visitStdFunction(self, ctx: CParser.StdFunctionContext):
+        """
+        stdFunction
+            : strlenFunction
+            | atoiFunction
+            | printfFunction
+            | scanfFunction
+            | getsFunction
+        """
+        return self.visit(ctx.getChild(0))
+
+    def visitStrlenFunction(self, ctx: CParser.StrlenFunctionContext):
+        """
+        strlen
+            : 'strlen' LEFT_PAREN Identifier RIGHT_PAREN
+        """
+        strlen = None
+        if 'strlen' in self.Funs:
+            strlen = self.Funs['strlen']
+        else:
+            strlenType = ir.FunctionType(int32, [ir.PointerType(int8)], var_arg=False)
+            strlen = ir.Function(self.Module, strlenType, name="strlen")
+            self.Funs['strlen'] = strlen
+
+        print("visitStrlenFunction", ctx.getText())
+        builder = self.Builders[-1]
+        name = ctx.Identifier().getText()  
+        print("Identifier name:", name)  
+        identifier = self.SymbolTable.get_item(name)  
+        if identifier is None:  
+            print(f"Variable {name} not found in symbol table")  
+            raise SemanticError(f"Undefined identifier: {name}")  
+        
+        int8_ptr = ir.PointerType(int8)  
+        if identifier.type == int8_ptr:  
+            ptr = identifier  
+        else:  
+            ptr = builder.bitcast(identifier, int8_ptr)  
+        retname = builder.call(strlen, [ptr])  
+        return retname 
+    
+    def visitAtoiFunction(self, ctx: CParser.AtoiFunctionContext):
+        """
+        atoi
+            : 'atoi' LEFT_PAREN Identifier RIGHT_PAREN
+        """
+        atoi = None
+        if 'atoi' in self.Funs:
+            atoi = self.Funs['atoi']
+        else:
+            atoiType = ir.FunctionType(int32, [ir.PointerType(int8)], var_arg=False)
+            atoi = ir.Function(self.Module, atoiType, name="atoi")
+            self.Funs['atoi'] = atoi
+        
+        builder = self.Builders[-1]
+        name = ctx.Identifier().getText()
+        print("Identifier name:", name)
+        
+        identifier = self.SymbolTable.get_item(name)  
+        if identifier is None:  
+            print(f"Variable {name} not found in symbol table")  
+            raise SemanticError(f"Undefined identifier: {name}")  
+    
+        print("identifier", identifier)  
+    
+        ptr_value = identifier  
+        if isinstance(ptr_value.type, ir.PointerType):  
+            if ptr_value.type.pointee == ir.IntType(8):  
+                ptr = ptr_value  
+            else:  
+                int8_ptr = ir.PointerType(ir.IntType(8))  
+                ptr = builder.bitcast(ptr_value, int8_ptr)  
+        else:  
+            zero = ir.Constant(ir.IntType(32), 0)  
+            ptr = builder.gep(ptr_value, [zero, zero], inbounds=True)  
+            int8_ptr = ir.PointerType(ir.IntType(8))  
+            ptr = builder.bitcast(ptr, int8_ptr)  
+    
+        ret_value = builder.call(atoi, [ptr])  
+        return ret_value  
+    def visitPrintfFunction(self, ctx: CParser.PrintfFunctionContext):
+        """
+        printf
+            : 'printf' LEFT_PAREN StringLiteral (COMMA expression)* RIGHT_PAREN
+        """
+        printf = None
+        if 'printf' in self.Funs:
+            printf = self.Funs['printf']
+        else:
+            printfType = ir.FunctionType(int32, [ir.PointerType(int8)], var_arg=True)
+            printf = ir.Function(self.Module, printfType, name="printf")
+            self.Funs['printf'] = printf
+        
+        builder = self.Builders[-1]
+        print("visitPrintfFunction", ctx.getText())
+        string_literals = ctx.StringLiteral()  
+        string_content = ''  
+    
+        if isinstance(string_literals, list):  
+            for string_node in string_literals:  
+                string_text = string_node.getText()  
+                content = string_text[1:-1]  
+                content_unescaped = bytes(content, "utf-8").decode("unicode_escape")  
+                string_content += content_unescaped  
+        elif isinstance(string_literals, TerminalNodeImpl):  
+            string_text = string_literals.getText()  
+            content = string_text[1:-1]  
+            string_content = bytes(content, "utf-8").decode("unicode_escape")  
+        else:  
+            raise Exception("No StringLiteral found in printf")  
+    
+        format_str_ptr = self.create_string_constant(string_content)  
+    
+        args = [format_str_ptr]  
+    
+        expr_list = ctx.expression()  
+        for expr_ctx in expr_list:  
+            arg_value = self.visit(expr_ctx)  
+            if isinstance(arg_value, dict):  
+                arg_value = arg_value['name']  
+            args.append(arg_value)  
+    
+        ret_value = builder.call(printf, args)  
+        return ret_value 
+    
+    def create_string_constant(self, string_content):  
+        """  
+        Helper method to create a global string constant and return a pointer to it.  
+        """  
+        builder = self.Builders[-1]  
+        str_len = len(string_content) + 1
+        str_type = ir.ArrayType(int8, str_len)  
+        str_const = ir.Constant(str_type, bytearray(string_content + '\0', 'utf-8'))  
+
+        if(self.Constants == 0):
+            name = ".str"
+        else:
+            name = ".str." + str(self.Constants)
+        self.Constants += 1
+        
+        str_global = ir.GlobalVariable(self.Module, str_type, name=name)  
+        str_global.linkage = 'private'  
+        str_global.global_constant = True  
+        str_global.initializer = str_const  
+        str_global.align = 1  
+        zero = ir.Constant(ir.IntType(32), 0)  
+        string_ptr = builder.gep(str_global, [zero, zero], inbounds=True)  
+        return string_ptr 
+    
+    def visitScanfFunction(self, ctx: CParser.ScanfFunctionContext):
+        """
+        scanf
+            : 'scanf' LEFT_PAREN (StringLiteral | Identifier) (COMMA addressOfVariable)* RIGHT_PAREN
+        """
+        scanf = None
+        if 'scanf' in self.Funs:
+            scanf = self.Funs['scanf']
+        else:
+            scanfType = ir.FunctionType(int32, [ir.PointerType(int8)], var_arg=True)
+            scanf = ir.Function(self.Module, scanfType, name="scanf")
+            self.Funs['scanf'] = scanf
+        
+        builder = self.Builders[-1]
+        print("visitScanfFunction", ctx.getText())
+        args = []  
+    
+        if ctx.StringLiteral():  
+            string_node = ctx.StringLiteral()  
+            string_text = string_node.getText()  
+            content = string_text[1:-1]  
+            content_unescaped = bytes(content, "utf-8").decode("unicode_escape")  
+            format_str_ptr = self.create_string_constant(content_unescaped)  
+            args.append(format_str_ptr)  
+        elif ctx.Identifier():  
+            name = ctx.Identifier().getText()  
+            identifier = self.SymbolTable.get_item(name)  
+            if identifier is None:  
+                raise SemanticError(f"Undefined identifier: {name}")  
+            if isinstance(identifier.type, ir.PointerType) and identifier.type.pointee == ir.IntType(8):  
+                ptr = identifier  
+            else:  
+                ptr = builder.bitcast(identifier, ir.PointerType(ir.IntType(8)))  
+            args.append(ptr)  
+        else:  
+            raise Exception("Expected StringLiteral or Identifier in scanf")  
+    
+        # addressOfVariable   
+        address_list = ctx.addressOfVariable()  
+        for address_ctx in address_list:  
+            var_name = address_ctx.Identifier().getText()  
+            variable = self.SymbolTable.get_item(var_name)  
+            if variable is None:  
+                raise SemanticError(f"Undefined variable: {var_name}")  
+            args.append(variable)  
+    
+        ret_value = builder.call(scanf, args)  
+        return ret_value  
+        
+    def visitGetsFunction(self, ctx: CParser.GetsFunctionContext):
+        """
+        gets
+            : 'gets' LEFT_PAREN Identifier RIGHT_PAREN
+        """
+        gets = None
+        if 'gets' in self.Funs:
+            gets = self.Funs['gets']
+        else:
+            getsType = ir.FunctionType(ir.PointerType(int8), [ir.PointerType(int8)], var_arg=False)
+            gets = ir.Function(self.Module, getsType, name="gets")
+            self.Funs['gets'] = gets
+        
+        builder = self.Builders[-1]
+        name = ctx.getChild(2).getText()
+        print("Identifier name:", name)
+
+        identifier = self.SymbolTable.get_item(name)
+        if identifier is None:
+            print(f"Variable {name} not found in symbol table")
+            raise SemanticError(f"Undefined identifier: {name}")
+
+        print("identifier", identifier)
+        print("identifier type:", identifier.type)  
+
+        ptr_value = identifier  
+        int8_ptr_type = ir.PointerType(int8)  
+    
+        if isinstance(ptr_value.type, ir.PointerType):  
+            if ptr_value.type.pointee == int8:  
+                ptr = ptr_value  
+            else:  
+                ptr = builder.bitcast(ptr_value, int8_ptr_type)  
+        elif isinstance(ptr_value.type, ir.ArrayType):  
+            zero = ir.Constant(ir.IntType(32), 0)  
+            ptr = builder.gep(ptr_value, [zero, zero], inbounds=True)  
+            ptr = builder.bitcast(ptr, int8_ptr_type)  
+        else:  
+            raise ValueError(f"Variable '{name}' of unsupported type '{ptr_value.type}' for gets")  
+    
+        ret_value = builder.call(gets, [ptr]) 
+        return ret_value
     def visitFunctionDefinition(self, ctx: CParser.FunctionDefinitionContext):
         """处理函数定义"""
         print("\n=== Starting Function Definition ===")
@@ -503,14 +745,17 @@ class Visitor(CVisitor):
     def visitPrimaryExpression(self, ctx: CParser.PrimaryExpressionContext):
         """
         primaryExpression
-            : Identifier
+            : stdFunction
+            | Identifier
             | Constant
             | CharacterConstant
             | StringLiteral
             | LEFT_PAREN expression RIGHT_PAREN
         """
         builder = self.Builders[-1]
-        if ctx.Identifier():
+        if ctx.stdFunction():
+            return self.visitStdFunction(ctx.stdFunction())
+        elif ctx.Identifier():
             name = ctx.Identifier().getText().strip('"')
             print(f"Looking for identifier: {name}")  # 调试输出
             self.SymbolTable.print_scopes()  # 调试输出
@@ -531,21 +776,18 @@ class Visitor(CVisitor):
         
         elif ctx.Constant():
             return self.visitConstant(ctx.Constant())
-            # val = ctx.Constant().getText()
-            # try:
-            #     # 尝试将值解析为整数
-            #     return ir.Constant(int32, int(val))
-            # except ValueError:
-            #     try:
-            #         # 如果不是整数，尝试解析为浮点数
-            #         return ir.Constant(double, float(val))
-            #     except ValueError:
-            #         raise SemanticError(f"Invalid constant: {val}")
-        
+        elif ctx.CharacterConstant():
+            return self.visitCharacterConstant(ctx.CharacterConstant())
+        elif ctx.StringLiteral():
+            return self.visitStringLiteral(ctx.StringLiteral())
         elif ctx.LEFT_PAREN():
             return self.visitExpression(ctx.expression())
-        
+        else:
+            print("Unknown primary expression")  # 调试输出
+            print(ctx.getText())  # 调试输出
+            raise ValueError("Unknown primary expression")
         return None
+    
     def visitConstant(self, ctx):
         """处理常量值"""
         val = ctx.getText()
@@ -557,6 +799,52 @@ class Visitor(CVisitor):
                 return ir.Constant(double, float(val))
             except ValueError:
                 raise SemanticError(f"Invalid constant: {val}")
+    def visitCharacterConstant(self, ctx):
+        char_text = ctx.getText()[1:-1]  # 去掉引号
+        if len(char_text) == 1 and char_text not in '\\':
+            return ir.Constant(int8, ord(char_text))
+        elif len(char_text) == 2 and char_text[0] == '\\':
+            escape_chars = {
+                'b': '\b',  # 退格
+                't': '\t',  # 水平制表
+                'n': '\n',  # 换行
+                'f': '\f',  # 换页
+                'r': '\r',  # 回车
+                '"': '"',   # 双引号
+                '\'': "'",  # 单引号
+                '\\': '\\', # 反斜杠
+            }
+            escaped_char = escape_chars.get(char_text[1])
+            if escaped_char is not None:
+                return ir.Constant(int8, ord(escaped_char))
+            else:
+                raise ValueError(f"Unknown escape sequence: {char_text}")
+        else:
+            raise ValueError(f"Invalid character constant: {char_text}")
+    def visitStringLiteral(self, ctx):
+        string_text = ctx.getText()[1:-1]  
+        string_value = bytes(string_text, "utf-8").decode("unicode_escape")  
+        
+        str_len = len(string_value) + 1  # Include null terminator  
+        str_type = ir.ArrayType(int8, str_len)  
+        str_const = ir.Constant(str_type, bytearray(string_value + '\0', 'utf-8'))  
+        
+        if(self.Constants == 0):
+            name = ".str"
+        else:
+            name = ".str." + str(self.Constants)
+        self.Constants += 1
+    
+        str_global = ir.GlobalVariable(self.Module, str_type, name=name)  
+        str_global.linkage = 'private'  
+        str_global.global_constant = True  
+        str_global.initializer = str_const  
+        str_global.align = 1  
+    
+        zero = ir.Constant(ir.IntType(32), 0) 
+        builder = self.Builders[-1]   
+        string_ptr = builder.gep(str_global, [zero, zero], inbounds=True)  
+        return string_ptr  
     def visitExpression(self, ctx: CParser.ExpressionContext):
         """
         expression

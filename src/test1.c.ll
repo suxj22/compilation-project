@@ -1,6 +1,5 @@
 ; ModuleID = "my_module"
-target triple = "x86_64-pc-linux-gnu"
-
+target triple = "aarch64-apple-macosx14.0.0"
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 
 define i32 @"factorial"(i32 %"n")
@@ -154,5 +153,46 @@ cond_merge:
   %".97" = load i32, i32* %"x"
   %".98" = load i32, i32* %"y"
   %".99" = add i32 %".97", %".98"
+  %"chr" = alloca i32
+  %".100" = zext i8 97 to i32
+  store i32 %".100", i32* %"chr"
+  %"str" = alloca i32
+  %".102" = getelementptr inbounds [14 x i8], [14 x i8]* @".str", i32 0, i32 0
+  %".103" = load i8, i8* %".102"
+  %".104" = zext i8 %".103" to i32
+  store i32 %".104", i32* %"str"
+  %"len" = alloca i32
+  %".106" = bitcast i32* %"str" to i8*
+  %".107" = call i32 @"strlen"(i8* %".106")
+  store i32 %".107", i32* %"len"
+  %"in" = alloca i32
+  %".109" = bitcast i32* %"str" to i8*
+  %".110" = call i32 @"atoi"(i8* %".109")
+  store i32 %".110", i32* %"in"
+  %".112" = getelementptr inbounds [4 x i8], [4 x i8]* @".str.1", i32 0, i32 0
+  %".113" = load i32, i32* %"str"
+  %".114" = call i32 (i8*, ...) @"printf"(i8* %".112", i32 %".113")
+  %".115" = getelementptr inbounds [4 x i8], [4 x i8]* @".str.2", i32 0, i32 0
+  %".116" = call i32 (i8*, ...) @"printf"(i8* %".115")
+  %".117" = getelementptr inbounds [3 x i8], [3 x i8]* @".str.3", i32 0, i32 0
+  %".118" = call i32 (i8*, ...) @"scanf"(i8* %".117", i32* %"in")
+  %".119" = bitcast i32* %"str" to i8*
+  %".120" = call i8* @"gets"(i8* %".119")
+  %".121" = load i8, i8* %".120"
+  %".122" = zext i8 %".121" to i32
   ret i32 0
 }
+
+@".str" = private constant [14 x i8] c"Hello, world!\00", align 1
+declare i32 @"strlen"(i8* %".1")
+
+declare i32 @"atoi"(i8* %".1")
+
+declare i32 @"printf"(i8* %".1", ...)
+
+@".str.1" = private constant [4 x i8] c"%s\0a\00", align 1
+@".str.2" = private constant [4 x i8] c"aaa\00", align 1
+declare i32 @"scanf"(i8* %".1", ...)
+
+@".str.3" = private constant [3 x i8] c"%d\00", align 1
+declare i8* @"gets"(i8* %".1")
