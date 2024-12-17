@@ -10,10 +10,7 @@ from antlr4.tree.Tree import TerminalNodeImpl  # 确保正确导入 TerminalNode
 from Parser.generated.CLexer import CLexer
 from Parser.generated.CParser import CParser
 from Generator.Visitor import Visitor
-<<<<<<< HEAD
 # from Generator.Visitor_ import Visitor
-=======
->>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
 def tree_to_dict(tree, parser):
     """
     将解析树转换为嵌套字典。
@@ -121,13 +118,9 @@ if __name__ == '__main__':
         print("Usage: python3 test_parser.py <input-file>")
         sys.exit(1)
 
-<<<<<<< HEAD
     # 输出重定向到文件，便于调试
     with open('debug.txt', 'w') as f:
         original_stdout = sys.stdout
         sys.stdout = f        
         generate(sys.argv)
         sys
-=======
-    generate(sys.argv)
->>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
