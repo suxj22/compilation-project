@@ -8,7 +8,6 @@ from antlr4.tree.Tree import TerminalNodeImpl  # 确保正确导入 TerminalNode
 from generated.CLexer import CLexer
 from generated.CParser import CParser
 from Generator.Visitor import Visitor
-<<<<<<< HEAD
 
 header_to_functions = {
     "stdio.h": [
@@ -46,8 +45,6 @@ def process_includes(lines, header_to_functions):
     return processed_lines
 
 
-=======
->>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
 def tree_to_dict(tree, parser):
     """
     将解析树转换为嵌套字典。
@@ -88,14 +85,8 @@ def generate(argv):
     with open(input_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
 
-<<<<<<< HEAD
     processed_lines = process_includes(lines, header_to_functions)
     filtered_text = '\n'.join(processed_lines)
-=======
-    # 移除以 #include 开头的行，忽略前导空白
-    filtered_lines = [line for line in lines if not line.lstrip().startswith("#include")]
-    filtered_text = ''.join(filtered_lines)
->>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
 
     # 将过滤后的文本传递给 ANTLR
     input_stream = InputStream(filtered_text)
