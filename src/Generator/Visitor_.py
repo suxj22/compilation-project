@@ -199,6 +199,7 @@ class Visitor(CVisitor):
                 builder.store(new_val, lhs_ptr)
                 return new_val
         else:
+            print(ctx.getText())
             return self.visitConditionalExpression(ctx.conditionalExpression())
 
     def visitConditionalExpression(self, ctx: CParser.ConditionalExpressionContext):

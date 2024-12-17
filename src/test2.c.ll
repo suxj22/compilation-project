@@ -1,11 +1,6 @@
 ; ModuleID = "my_module"
-<<<<<<< HEAD
-target triple = "aarch64-apple-macosx14.0.0"
-target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
-=======
 target triple = "x86_64-pc-linux-gnu"
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
->>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
+target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 
 define i32 @"compute_sum"(i32 %"a", i32 %"b")
 {
@@ -17,318 +12,296 @@ entry:
   %".6" = load i32, i32* %"a_addr"
   %".7" = load i32, i32* %"b_addr"
   %".8" = add i32 %".6", %".7"
-<<<<<<< HEAD
   ret i32 %".8"
-=======
-  %".9" = icmp ne i32 %".8", 0
-  %".10" = zext i1 %".9" to i32
-  %".11" = icmp ne i32 %".10", 0
-  %".12" = zext i1 %".11" to i32
-  %".13" = icmp ne i32 %".12", 0
-  %".14" = zext i1 %".13" to i32
-  ret i32 %".14"
->>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
 }
 
-define void @"test_all_loops"()
+define void @"test_while_loop"()
 {
 entry:
+  %".2" = getelementptr inbounds [25 x i8], [25 x i8]* @".str", i32 0, i32 0
+  %".3" = call i32 (i8*, ...) @"printf"(i8* %".2")
+  %"expected_i" = alloca i32
+  store i32 5, i32* %"expected_i"
   %"i" = alloca i32
-<<<<<<< HEAD
   store i32 0, i32* %"i"
   br label %"while_cond"
 while_cond:
-  %".4" = load i32, i32* %"i"
-  %".5" = icmp slt i32 %".4", 5
-  %".6" = zext i1 %".5" to i32
-  %".7" = icmp ne i32 %".6", 0
-  br i1 %".7", label %"while_body", label %"while_end"
+  %".7" = load i32, i32* %"i"
+  %".8" = icmp slt i32 %".7", 5
+  %".9" = zext i1 %".8" to i32
+  %".10" = icmp ne i32 %".9", 0
+  br i1 %".10", label %"while_body", label %"while_end"
 while_body:
-  %".9" = load i32, i32* %"i"
-  %".10" = add i32 %".9", 1
-  store i32 %".10", i32* %"i"
+  %".12" = load i32, i32* %"i"
+  %".13" = add i32 %".12", 1
+  store i32 %".13", i32* %"i"
   br label %"while_cond"
 while_end:
+  %".16" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.1", i32 0, i32 0
+  %".17" = load i32, i32* %"expected_i"
+  %".18" = call i32 (i8*, ...) @"printf"(i8* %".16", i32 %".17")
+  %".19" = getelementptr inbounds [15 x i8], [15 x i8]* @".str.2", i32 0, i32 0
+  %".20" = load i32, i32* %"i"
+  %".21" = call i32 (i8*, ...) @"printf"(i8* %".19", i32 %".20")
+  %".22" = load i32, i32* %"i"
+  %".23" = load i32, i32* %"expected_i"
+  %".24" = icmp eq i32 %".22", %".23"
+  %".25" = zext i1 %".24" to i32
+  %".26" = icmp ne i32 %".25", 0
+  br i1 %".26", label %"if_then", label %"if_else"
+if_then:
+  %".28" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.3", i32 0, i32 0
+  %".29" = call i32 (i8*, ...) @"printf"(i8* %".28")
+  br label %"if_merge"
+if_else:
+  %".30" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.4", i32 0, i32 0
+  %".31" = call i32 (i8*, ...) @"printf"(i8* %".30")
+  br label %"if_merge"
+if_merge:
+  ret void
+}
+
+declare i32 @"printf"(i8* %".1", ...)
+
+@".str" = private constant [25 x i8] c"=== Test while loop ===\0a\00", align 1
+@".str.1" = private constant [17 x i8] c"Expected i = %d\0a\00", align 1
+@".str.2" = private constant [15 x i8] c"Actual i = %d\0a\00", align 1
+@".str.3" = private constant [17 x i8] c"Result: Passed\0a\0a\00", align 1
+@".str.4" = private constant [17 x i8] c"Result: Failed\0a\0a\00", align 1
+define void @"test_do_while_loop"()
+{
+entry:
+  %".2" = getelementptr inbounds [28 x i8], [28 x i8]* @".str.5", i32 0, i32 0
+  %".3" = call i32 (i8*, ...) @"printf"(i8* %".2")
+  %"expected_j" = alloca i32
+  store i32 10, i32* %"expected_j"
   %"j" = alloca i32
   store i32 0, i32* %"j"
-  br label %"while_cond.1"
-while_cond.1:
-  %".15" = load i32, i32* %"j"
-  %".16" = icmp slt i32 %".15", 10
-  %".17" = zext i1 %".16" to i32
-  %".18" = icmp ne i32 %".17", 0
-  br i1 %".18", label %"while_body.1", label %"while_end.1"
-while_body.1:
+  br label %"while_cond"
+while_cond:
+  %".7" = load i32, i32* %"j"
+  %".8" = icmp slt i32 %".7", 10
+  %".9" = zext i1 %".8" to i32
+  %".10" = icmp ne i32 %".9", 0
+  br i1 %".10", label %"while_body", label %"while_end"
+while_body:
+  %".12" = load i32, i32* %"j"
+  %".13" = add i32 %".12", 2
+  store i32 %".13", i32* %"j"
+  br label %"while_cond"
+while_end:
+  %".16" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.6", i32 0, i32 0
+  %".17" = load i32, i32* %"expected_j"
+  %".18" = call i32 (i8*, ...) @"printf"(i8* %".16", i32 %".17")
+  %".19" = getelementptr inbounds [15 x i8], [15 x i8]* @".str.7", i32 0, i32 0
   %".20" = load i32, i32* %"j"
-  %".21" = add i32 %".20", 2
-  store i32 %".21", i32* %"j"
-  br label %"while_cond.1"
-while_end.1:
+  %".21" = call i32 (i8*, ...) @"printf"(i8* %".19", i32 %".20")
+  %".22" = load i32, i32* %"j"
+  %".23" = load i32, i32* %"expected_j"
+  %".24" = icmp eq i32 %".22", %".23"
+  %".25" = zext i1 %".24" to i32
+  %".26" = icmp ne i32 %".25", 0
+  br i1 %".26", label %"if_then", label %"if_else"
+if_then:
+  %".28" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.8", i32 0, i32 0
+  %".29" = call i32 (i8*, ...) @"printf"(i8* %".28")
+  br label %"if_merge"
+if_else:
+  %".30" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.9", i32 0, i32 0
+  %".31" = call i32 (i8*, ...) @"printf"(i8* %".30")
+  br label %"if_merge"
+if_merge:
+  ret void
+}
+
+@".str.5" = private constant [28 x i8] c"=== Test do-while loop ===\0a\00", align 1
+@".str.6" = private constant [17 x i8] c"Expected j = %d\0a\00", align 1
+@".str.7" = private constant [15 x i8] c"Actual j = %d\0a\00", align 1
+@".str.8" = private constant [17 x i8] c"Result: Passed\0a\0a\00", align 1
+@".str.9" = private constant [17 x i8] c"Result: Failed\0a\0a\00", align 1
+define void @"test_for_loop"()
+{
+entry:
+  %".2" = getelementptr inbounds [23 x i8], [23 x i8]* @".str.10", i32 0, i32 0
+  %".3" = call i32 (i8*, ...) @"printf"(i8* %".2")
+  %"expected_iterations" = alloca i32
+  store i32 5, i32* %"expected_iterations"
+  %"actual_iterations" = alloca i32
+  store i32 0, i32* %"actual_iterations"
+  %"j" = alloca i32
+  store i32 10, i32* %"j"
   br label %"for_init"
 for_init:
   %"k" = alloca i32
   store i32 0, i32* %"k"
   br label %"for_cond"
 for_cond:
-  %".27" = load i32, i32* %"k"
-  %".28" = icmp slt i32 %".27", 5
-  %".29" = zext i1 %".28" to i32
-  %".30" = icmp ne i32 %".29", 0
-  br i1 %".30", label %"for_body", label %"for_end"
-for_body:
-  %"sum" = alloca i32
-  %".32" = load i32, i32* %"k"
-  %".33" = load i32, i32* %"j"
-  %".34" = call i32 @"compute_sum"(i32 %".32", i32 %".33")
-  store i32 %".34", i32* %"sum"
-  br label %"for_inc"
-for_inc:
-  %".37" = load i32, i32* %"k"
-  %".38" = add i32 %".37", 1
-  store i32 %".38", i32* %"k"
-  br label %"for_cond"
-for_end:
-  br label %"for_init.1"
-for_init.1:
-  %"m" = alloca i32
-  store i32 0, i32* %"m"
-  br label %"for_cond.1"
-for_cond.1:
-  %".44" = load i32, i32* %"m"
-  %".45" = icmp slt i32 %".44", 3
-  %".46" = zext i1 %".45" to i32
-  %".47" = icmp ne i32 %".46", 0
-  br i1 %".47", label %"for_body.1", label %"for_end.1"
-for_body.1:
-  br label %"while_cond.2"
-for_inc.1:
-  %".60" = load i32, i32* %"m"
-  %".61" = add i32 %".60", 1
-  store i32 %".61", i32* %"m"
-=======
-  %".2" = icmp ne i32 0, 0
-  %".3" = zext i1 %".2" to i32
-  %".4" = icmp ne i32 %".3", 0
-  %".5" = zext i1 %".4" to i32
-  store i32 %".5", i32* %"i"
-  br label %"while_cond"
-while_cond:
-  %".8" = load i32, i32* %"i"
-  %".9" = icmp slt i32 %".8", 5
-  %".10" = zext i1 %".9" to i32
-  %".11" = icmp ne i32 %".10", 0
+  %".10" = load i32, i32* %"k"
+  %".11" = icmp slt i32 %".10", 5
   %".12" = zext i1 %".11" to i32
   %".13" = icmp ne i32 %".12", 0
-  %".14" = zext i1 %".13" to i32
-  %".15" = icmp ne i32 %".14", 0
-  %".16" = zext i1 %".15" to i32
-  %".17" = icmp ne i32 %".16", 0
-  br i1 %".17", label %"while_body", label %"while_end"
-while_body:
-  %".19" = icmp ne i32 1, 0
-  %".20" = zext i1 %".19" to i32
-  %".21" = icmp ne i32 %".20", 0
-  %".22" = zext i1 %".21" to i32
-  %".23" = load i32, i32* %"i"
-  %".24" = add i32 %".23", %".22"
-  store i32 %".24", i32* %"i"
-  %".26" = icmp ne i32 %".24", 0
-  %".27" = zext i1 %".26" to i32
-  br label %"while_cond"
-while_end:
-  %"j" = alloca i32
-  %".29" = icmp ne i32 0, 0
-  %".30" = zext i1 %".29" to i32
-  %".31" = icmp ne i32 %".30", 0
-  %".32" = zext i1 %".31" to i32
-  store i32 %".32", i32* %"j"
-  br label %"while_cond.1"
-while_cond.1:
-  %".35" = load i32, i32* %"j"
-  %".36" = icmp slt i32 %".35", 10
-  %".37" = zext i1 %".36" to i32
-  %".38" = icmp ne i32 %".37", 0
-  %".39" = zext i1 %".38" to i32
-  %".40" = icmp ne i32 %".39", 0
-  %".41" = zext i1 %".40" to i32
-  %".42" = icmp ne i32 %".41", 0
-  %".43" = zext i1 %".42" to i32
-  %".44" = icmp ne i32 %".43", 0
-  br i1 %".44", label %"while_body.1", label %"while_end.1"
-while_body.1:
-  %".46" = icmp ne i32 2, 0
-  %".47" = zext i1 %".46" to i32
-  %".48" = icmp ne i32 %".47", 0
-  %".49" = zext i1 %".48" to i32
-  %".50" = load i32, i32* %"j"
-  %".51" = add i32 %".50", %".49"
-  store i32 %".51", i32* %"j"
-  %".53" = icmp ne i32 %".51", 0
-  %".54" = zext i1 %".53" to i32
-  br label %"while_cond.1"
-while_end.1:
-  %"k" = alloca i32
-  %".56" = icmp ne i32 0, 0
-  %".57" = zext i1 %".56" to i32
-  %".58" = icmp ne i32 %".57", 0
-  %".59" = zext i1 %".58" to i32
-  store i32 %".59", i32* %"k"
-  %".61" = load i32, i32* %"k"
-  %".62" = icmp slt i32 %".61", 5
-  %".63" = zext i1 %".62" to i32
-  %".64" = icmp ne i32 %".63", 0
-  %".65" = zext i1 %".64" to i32
-  %".66" = icmp ne i32 %".65", 0
-  %".67" = zext i1 %".66" to i32
-  %".68" = icmp ne i32 %".67", 0
-  %".69" = zext i1 %".68" to i32
-  %".70" = icmp ne i32 1, 0
-  %".71" = zext i1 %".70" to i32
-  %".72" = icmp ne i32 %".71", 0
-  %".73" = zext i1 %".72" to i32
-  %".74" = load i32, i32* %"k"
-  %".75" = add i32 %".74", %".73"
-  store i32 %".75", i32* %"k"
-  %".77" = icmp ne i32 %".75", 0
-  %".78" = zext i1 %".77" to i32
-  br label %"for_cond"
-for_cond:
-  %".80" = icmp ne i32 %".69", 0
-  br i1 %".80", label %"for_body", label %"for_end"
+  br i1 %".13", label %"for_body", label %"for_end"
 for_body:
   %"sum" = alloca i32
-  %".82" = load i32, i32* %"k"
-  %".83" = icmp ne i32 %".82", 0
-  %".84" = zext i1 %".83" to i32
-  %".85" = icmp ne i32 %".84", 0
-  %".86" = zext i1 %".85" to i32
-  %".87" = load i32, i32* %"j"
-  %".88" = icmp ne i32 %".87", 0
-  %".89" = zext i1 %".88" to i32
-  %".90" = icmp ne i32 %".89", 0
-  %".91" = zext i1 %".90" to i32
-  %".92" = call i32 @"compute_sum"(i32 %".86", i32 %".91")
-  %".93" = icmp ne i32 %".92", 0
-  %".94" = zext i1 %".93" to i32
-  %".95" = icmp ne i32 %".94", 0
-  %".96" = zext i1 %".95" to i32
-  store i32 %".96", i32* %"sum"
-  br label %"for_incr"
-for_incr:
+  %".15" = load i32, i32* %"k"
+  %".16" = load i32, i32* %"j"
+  %".17" = call i32 @"compute_sum"(i32 %".15", i32 %".16")
+  store i32 %".17", i32* %"sum"
+  %".19" = getelementptr inbounds [26 x i8], [26 x i8]* @".str.11", i32 0, i32 0
+  %".20" = load i32, i32* %"k"
+  %".21" = load i32, i32* %"j"
+  %".22" = load i32, i32* %"sum"
+  %".23" = call i32 (i8*, ...) @"printf"(i8* %".19", i32 %".22")
+  %".24" = load i32, i32* %"actual_iterations"
+  %".25" = add i32 %".24", 1
+  store i32 %".25", i32* %"actual_iterations"
+  br label %"for_inc"
+for_inc:
+  %".28" = load i32, i32* %"k"
+  %".29" = add i32 %".28", 1
+  store i32 %".29", i32* %"k"
   br label %"for_cond"
 for_end:
-  %"m" = alloca i32
-  %".100" = icmp ne i32 0, 0
-  %".101" = zext i1 %".100" to i32
-  %".102" = icmp ne i32 %".101", 0
-  %".103" = zext i1 %".102" to i32
-  store i32 %".103", i32* %"m"
-  %".105" = load i32, i32* %"m"
-  %".106" = icmp slt i32 %".105", 3
-  %".107" = zext i1 %".106" to i32
-  %".108" = icmp ne i32 %".107", 0
-  %".109" = zext i1 %".108" to i32
-  %".110" = icmp ne i32 %".109", 0
-  %".111" = zext i1 %".110" to i32
-  %".112" = icmp ne i32 %".111", 0
-  %".113" = zext i1 %".112" to i32
-  %".114" = icmp ne i32 1, 0
-  %".115" = zext i1 %".114" to i32
-  %".116" = icmp ne i32 %".115", 0
-  %".117" = zext i1 %".116" to i32
-  %".118" = load i32, i32* %"m"
-  %".119" = add i32 %".118", %".117"
-  store i32 %".119", i32* %"m"
-  %".121" = icmp ne i32 %".119", 0
-  %".122" = zext i1 %".121" to i32
-  br label %"for_cond.1"
-for_cond.1:
-  %".124" = icmp ne i32 %".113", 0
-  br i1 %".124", label %"for_body.1", label %"for_end.1"
-for_body.1:
-  br label %"while_cond.2"
-for_incr.1:
->>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
-  br label %"for_cond.1"
-for_end.1:
+  %".32" = getelementptr inbounds [26 x i8], [26 x i8]* @".str.12", i32 0, i32 0
+  %".33" = load i32, i32* %"expected_iterations"
+  %".34" = call i32 (i8*, ...) @"printf"(i8* %".32", i32 %".33")
+  %".35" = getelementptr inbounds [24 x i8], [24 x i8]* @".str.13", i32 0, i32 0
+  %".36" = load i32, i32* %"actual_iterations"
+  %".37" = call i32 (i8*, ...) @"printf"(i8* %".35", i32 %".36")
+  %".38" = load i32, i32* %"actual_iterations"
+  %".39" = load i32, i32* %"expected_iterations"
+  %".40" = icmp eq i32 %".38", %".39"
+  %".41" = zext i1 %".40" to i32
+  %".42" = icmp ne i32 %".41", 0
+  br i1 %".42", label %"if_then", label %"if_else"
+if_then:
+  %".44" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.14", i32 0, i32 0
+  %".45" = call i32 (i8*, ...) @"printf"(i8* %".44")
+  br label %"if_merge"
+if_else:
+  %".46" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.15", i32 0, i32 0
+  %".47" = call i32 (i8*, ...) @"printf"(i8* %".46")
+  br label %"if_merge"
+if_merge:
   ret void
-while_cond.2:
-<<<<<<< HEAD
-  %".50" = load i32, i32* %"i"
-  %".51" = icmp slt i32 %".50", 10
-  %".52" = zext i1 %".51" to i32
-  %".53" = icmp ne i32 %".52", 0
-  br i1 %".53", label %"while_body.2", label %"while_end.2"
-while_body.2:
-  %".55" = load i32, i32* %"i"
-  %".56" = add i32 %".55", 1
-  store i32 %".56", i32* %"i"
-  br label %"while_cond.2"
-while_end.2:
-  br label %"for_inc.1"
 }
 
+@".str.10" = private constant [23 x i8] c"=== Test for loop ===\0a\00", align 1
+@".str.11" = private constant [26 x i8] c"k = %d, j = %d, sum = %d\0a\00", align 1
+@".str.12" = private constant [26 x i8] c"Expected iterations = %d\0a\00", align 1
+@".str.13" = private constant [24 x i8] c"Actual iterations = %d\0a\00", align 1
+@".str.14" = private constant [17 x i8] c"Result: Passed\0a\0a\00", align 1
+@".str.15" = private constant [17 x i8] c"Result: Failed\0a\0a\00", align 1
+define void @"test_nested_loops"()
+{
+entry:
+  %".2" = getelementptr inbounds [27 x i8], [27 x i8]* @".str.16", i32 0, i32 0
+  %".3" = call i32 (i8*, ...) @"printf"(i8* %".2")
+  %"expected_i" = alloca i32
+  store i32 10, i32* %"expected_i"
+  %"i" = alloca i32
+  store i32 5, i32* %"i"
+  br label %"for_init"
+for_init:
+  %"m" = alloca i32
+  store i32 0, i32* %"m"
+  br label %"for_cond"
+for_cond:
+  %".9" = load i32, i32* %"m"
+  %".10" = icmp slt i32 %".9", 3
+  %".11" = zext i1 %".10" to i32
+  %".12" = icmp ne i32 %".11", 0
+  br i1 %".12", label %"for_body", label %"for_end"
+for_body:
+  br label %"while_cond"
+for_inc:
+  %".25" = load i32, i32* %"m"
+  %".26" = add i32 %".25", 1
+  store i32 %".26", i32* %"m"
+  br label %"for_cond"
+for_end:
+  %".29" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.17", i32 0, i32 0
+  %".30" = load i32, i32* %"expected_i"
+  %".31" = call i32 (i8*, ...) @"printf"(i8* %".29", i32 %".30")
+  %".32" = getelementptr inbounds [15 x i8], [15 x i8]* @".str.18", i32 0, i32 0
+  %".33" = load i32, i32* %"i"
+  %".34" = call i32 (i8*, ...) @"printf"(i8* %".32", i32 %".33")
+  %".35" = load i32, i32* %"i"
+  %".36" = load i32, i32* %"expected_i"
+  %".37" = icmp eq i32 %".35", %".36"
+  %".38" = zext i1 %".37" to i32
+  %".39" = icmp ne i32 %".38", 0
+  br i1 %".39", label %"if_then", label %"if_else"
+while_cond:
+  %".15" = load i32, i32* %"i"
+  %".16" = icmp slt i32 %".15", 10
+  %".17" = zext i1 %".16" to i32
+  %".18" = icmp ne i32 %".17", 0
+  br i1 %".18", label %"while_body", label %"while_end"
+while_body:
+  %".20" = load i32, i32* %"i"
+  %".21" = add i32 %".20", 1
+  store i32 %".21", i32* %"i"
+  br label %"while_cond"
+while_end:
+  br label %"for_inc"
+if_then:
+  %".41" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.19", i32 0, i32 0
+  %".42" = call i32 (i8*, ...) @"printf"(i8* %".41")
+  br label %"if_merge"
+if_else:
+  %".43" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.20", i32 0, i32 0
+  %".44" = call i32 (i8*, ...) @"printf"(i8* %".43")
+  br label %"if_merge"
+if_merge:
+  ret void
+}
+
+@".str.16" = private constant [27 x i8] c"=== Test nested loops ===\0a\00", align 1
+@".str.17" = private constant [17 x i8] c"Expected i = %d\0a\00", align 1
+@".str.18" = private constant [15 x i8] c"Actual i = %d\0a\00", align 1
+@".str.19" = private constant [17 x i8] c"Result: Passed\0a\0a\00", align 1
+@".str.20" = private constant [17 x i8] c"Result: Failed\0a\0a\00", align 1
 define i32 @"main"()
 {
 entry:
-  call void @"test_all_loops"()
-  ret i32 0
-=======
-  %".127" = load i32, i32* %"i"
-  %".128" = icmp slt i32 %".127", 10
-  %".129" = zext i1 %".128" to i32
-  %".130" = icmp ne i32 %".129", 0
-  %".131" = zext i1 %".130" to i32
-  %".132" = icmp ne i32 %".131", 0
-  %".133" = zext i1 %".132" to i32
-  %".134" = icmp ne i32 %".133", 0
-  %".135" = zext i1 %".134" to i32
-  %".136" = icmp ne i32 %".135", 0
-  br i1 %".136", label %"while_body.2", label %"while_end.2"
-while_body.2:
-  br label %"while_cond.3"
-while_end.2:
-  br label %"for_incr.1"
-while_cond.3:
-  %".139" = load i32, i32* %"i"
-  %".140" = icmp slt i32 %".139", 8
-  %".141" = zext i1 %".140" to i32
-  %".142" = icmp ne i32 %".141", 0
-  %".143" = zext i1 %".142" to i32
-  %".144" = icmp ne i32 %".143", 0
-  %".145" = zext i1 %".144" to i32
-  %".146" = icmp ne i32 %".145", 0
-  %".147" = zext i1 %".146" to i32
-  %".148" = icmp ne i32 %".147", 0
-  br i1 %".148", label %"while_body.3", label %"while_end.3"
-while_body.3:
-  %".150" = icmp ne i32 1, 0
-  %".151" = zext i1 %".150" to i32
-  %".152" = icmp ne i32 %".151", 0
-  %".153" = zext i1 %".152" to i32
-  %".154" = load i32, i32* %"i"
-  %".155" = add i32 %".154", %".153"
-  store i32 %".155", i32* %"i"
-  %".157" = icmp ne i32 %".155", 0
-  %".158" = zext i1 %".157" to i32
-  %".159" = load i32, i32* %"i"
-  %".160" = icmp eq i32 %".159", 7
-  %".161" = zext i1 %".160" to i32
-  %".162" = icmp ne i32 %".161", 0
-  %".163" = zext i1 %".162" to i32
-  %".164" = icmp ne i32 %".163", 0
-  %".165" = zext i1 %".164" to i32
-  %".166" = icmp ne i32 %".165", 0
-  %".167" = zext i1 %".166" to i32
-  %".168" = icmp ne i32 %".167", 0
-  %".169" = zext i1 %".168" to i32
-  br i32 %".169", label %"if_then", label %"if_merge"
-while_end.3:
-  br label %"while_cond.2"
+  %".2" = getelementptr inbounds [28 x i8], [28 x i8]* @".str.21", i32 0, i32 0
+  %".3" = call i32 (i8*, ...) @"printf"(i8* %".2")
+  %"res" = alloca i32
+  %".4" = call i32 @"compute_sum"(i32 1, i32 2)
+  store i32 %".4", i32* %"res"
+  %"expected_res" = alloca i32
+  store i32 3, i32* %"expected_res"
+  %".7" = getelementptr inbounds [19 x i8], [19 x i8]* @".str.22", i32 0, i32 0
+  %".8" = load i32, i32* %"expected_res"
+  %".9" = call i32 (i8*, ...) @"printf"(i8* %".7", i32 %".8")
+  %".10" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.23", i32 0, i32 0
+  %".11" = load i32, i32* %"res"
+  %".12" = call i32 (i8*, ...) @"printf"(i8* %".10", i32 %".11")
+  %".13" = load i32, i32* %"res"
+  %".14" = load i32, i32* %"expected_res"
+  %".15" = icmp eq i32 %".13", %".14"
+  %".16" = zext i1 %".15" to i32
+  %".17" = icmp ne i32 %".16", 0
+  br i1 %".17", label %"if_then", label %"if_else"
 if_then:
-  br label %"while_end.3"
+  %".19" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.24", i32 0, i32 0
+  %".20" = call i32 (i8*, ...) @"printf"(i8* %".19")
+  br label %"if_merge"
 if_else:
+  %".21" = getelementptr inbounds [17 x i8], [17 x i8]* @".str.25", i32 0, i32 0
+  %".22" = call i32 (i8*, ...) @"printf"(i8* %".21")
   br label %"if_merge"
 if_merge:
->>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
+  call void @"test_while_loop"()
+  call void @"test_do_while_loop"()
+  call void @"test_for_loop"()
+  call void @"test_nested_loops"()
+  ret i32 0
 }
+
+@".str.21" = private constant [28 x i8] c"=== Test main function ===\0a\00", align 1
+@".str.22" = private constant [19 x i8] c"Expected res = %d\0a\00", align 1
+@".str.23" = private constant [17 x i8] c"Actual res = %d\0a\00", align 1
+@".str.24" = private constant [17 x i8] c"Result: Passed\0a\0a\00", align 1
+@".str.25" = private constant [17 x i8] c"Result: Failed\0a\0a\00", align 1

@@ -1,47 +1,47 @@
 // test_all_loops_combined.c
 #include <stdio.h>
 
-int compute_sum(int a, int b) {
+int compute_sum(int a, int b)
+{
     return a + b;
 }
 
-void test_all_loops() {
+void test_all_loops()
+{
     // while 循环
     int i = 0;
-    while (i < 5) {
+    while (i < 5)
+    {
         i += 1;
     }
 
     // do-while 循环
     int j = 0;
-    do {
+    do
+    {
         j += 2;
     } while (j < 10);
 
     // for 循环
-    for (int k = 0; k < 5; k += 1) {
+    for (int k = 0; k < 5; k += 1)
+    {
         // 递归函数调用
         int sum = compute_sum(k, j);
     }
 
     // 嵌套循环
-    for (int m = 0; m < 3; m += 1) {
-        while (i < 10) {
-<<<<<<< HEAD
+    for (int m = 0; m < 3; m += 1)
+    {
+        while (i < 10)
+        {
             i += 1;
         }
     }
 }
 
-int main() {
+int main()
+{
+    printf(compute_sum(1, 2));
     test_all_loops();
     return 0;
-=======
-            do {
-                i += 1;
-                if (i == 7) break;
-            } while (i < 8);
-        }
-    }
->>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
 }

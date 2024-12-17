@@ -491,6 +491,7 @@ class Visitor(CVisitor):
                 return new_val
         else:
             print("Conditional expression:", ctx.getText())
+            print("Conditional expression:", ctx)
             return self.visitConditionalExpression(ctx.conditionalExpression())
             # return self.castToBoolForExpr(self.visitConditionalExpression(ctx.conditionalExpression()))
 
@@ -736,6 +737,7 @@ class Visitor(CVisitor):
                 if isinstance(ctx.children[i+1], CParser.ArgumentExpressionListContext):
                     for a in ctx.children[i+1].assignmentExpression():
                         print(a.getText())
+                        
                         args.append(self.visitAssignmentExpression(a))
                         print(f"Argument: {args[-1]}")
                     i += 2 # 跳过argumentExpressionList和')'
