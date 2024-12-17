@@ -372,30 +372,107 @@ class Visitor(CVisitor):
                 self.visitStatement(child)
         self.SymbolTable.exit_scope()
         return
-
+    def getTypeAndNameFromDeclarator(self, base_type, declarator_ctx):  
+        ctype = base_type  
+        # Handle pointers  
+        if declarator_ctx.pointer():  
+            ctype = self.processPointer(ctype, declarator_ctx.pointer())  
+        name, ctype = self.processDirectDeclarator(ctype, declarator_ctx.directDeclarator())  
+        return ctype, name  
+    
+    def processPointer(self, ctype, pointer_ctx):  
+        # For each '*' in pointer, wrap ctype in a PointerType  
+        # pointer : (STAR typeQualifierList?)+  
+        num_pointers = len([child for child in pointer_ctx.children if child.getText() == '*'])  
+        for _ in range(num_pointers):  
+            ctype = ir.PointerType(ctype)  
+        return ctype  
+    
+    def processDirectDeclarator(self, ctype, direct_decl_ctx):  
+        children = direct_decl_ctx.children  
+        if len(children) == 1:  
+            if direct_decl_ctx.Identifier():  
+                name = direct_decl_ctx.Identifier().getText()  
+                return name, ctype  
+            elif direct_decl_ctx.declarator():  
+                # ( declarator ), so process the inner one  
+                return self.getTypeAndNameFromDeclarator(ctype, direct_decl_ctx.declarator())  
+        else:  
+            if len(children) >= 3 and children[1].getText() == '[':  
+                # directDeclarator [ constantExpression? ]  
+                # First process the left directDeclarator to get name and inner type  
+                name, inner_type = self.processDirectDeclarator(ctype, direct_decl_ctx.directDeclarator())  
+                # Then process the constantExpression to get the array size  
+                if direct_decl_ctx.constantExpression():  
+                    size_text = direct_decl_ctx.constantExpression().getText()  
+                    try:  
+                        size = int(size_text)  
+                    except ValueError:  
+                        raise NotImplementedError("Array size must be integer constant")  
+                    ctype = ir.ArrayType(inner_type, size)  
+                else:  
+                    ctype = ir.SequenceType(inner_type, 0) 
+                return name, ctype  
+            elif len(children) == 4 and children[0].getText() == '(' and children[3].getText() == ')':  
+                # ( declarator )  
+                return self.getTypeAndNameFromDeclarator(ctype, direct_decl_ctx.declarator())  
+            else:  
+                # Might need to handle nested directDeclarators  
+                return self.processDirectDeclarator(ctype, direct_decl_ctx.directDeclarator())  
+        raise NotImplementedError("Unsupported directDeclarator form: {}".format(direct_decl_ctx.getText()))  
+    def initializeArray(self, array_alloca, values, element_type):  
+        """  
+        array_alloca: the alloca for the array  
+        values: a list of values (possibly nested lists for multi-dimensional arrays)  
+        element_type: the type of the array elements  
+        """  
+        builder = self.Builders[-1]  
+        zero = ir.Constant(int32, 0)  
+    
+        def store_element(ptr, idxs, value, element_type):  
+            if isinstance(value, list):  
+                # Multi-dimensional array  
+                for i, v in enumerate(value):  
+                    idx_const = ir.Constant(int32, i)  
+                    store_element(ptr, idxs + [idx_const], v, element_type.element)  
+            else:  
+                idxs_total = [zero] + idxs  
+                element_ptr = builder.gep(ptr, idxs_total, inbounds=True)  
+                if isinstance(value, ir.Constant) and value.type != element_type:  
+                    if isinstance(element_type, ir.IntType):  
+                        value = builder.sext(value, element_type)  
+                    else:  
+                        # Handle other types as needed  
+                        pass  
+                builder.store(value, element_ptr)  
+    
+        store_element(array_alloca, [], values, element_type)  
     def visitDeclaration(self, ctx: CParser.DeclarationContext):
         """
         declaration
             : declarationSpecifiers initDeclaratorList? SEMI
         """
-        t = self.getTypeFromDeclarationSpecifiers(ctx.declarationSpecifiers())
-
-        # 处理带有初始化列表的声明
-        if ctx.initDeclaratorList():
-            for init_d in ctx.initDeclaratorList().initDeclarator():
-                name = self.getIdentifierFromDeclarator(init_d.declarator())
-                if name is None:
-                    continue 
-                builder = self.Builders[-1]
-                var_alloca = builder.alloca(t, name=name.strip('"'))
-                self.SymbolTable.add_item(name, var_alloca)
-                print(f"Added variable {name} to symbol table")  # 调试输出
-                if init_d.initializer():
-                    val = self.visitInitializer(init_d.initializer())
-                    # 如果 val 是布尔表达式，确保是 i32 类型
-                    if isinstance(val.type, ir.IntType) and val.type.width == 1:
-                        val = self.castToBoolForExpr(val)
-                    builder.store(val, var_alloca)
+        base_type = self.getTypeFromDeclarationSpecifiers(ctx.declarationSpecifiers())  
+      
+        if ctx.initDeclaratorList():  
+            for init_d in ctx.initDeclaratorList().initDeclarator():  
+                ctype, name = self.getTypeAndNameFromDeclarator(base_type, init_d.declarator())  
+                if name is None:  
+                    continue  
+                builder = self.Builders[-1]  
+                var_alloca = builder.alloca(ctype, name=name.strip('"'))  
+                self.SymbolTable.add_item(name, var_alloca)  
+                print(f"Added variable {name} of type {ctype} to symbol table")  
+                if init_d.initializer():  
+                    val = self.visitInitializer(init_d.initializer())  
+                    # If initializing an array, need to store the values into the array  
+                    if isinstance(ctype, ir.ArrayType):  
+                        self.initializeArray(var_alloca, val, ctype.element)  
+                    else:  
+                        # usual scalar initialization  
+                        if isinstance(val.type, ir.IntType) and val.type.width == 1:  
+                            val = self.castToBoolForExpr(val)  
+                        builder.store(val, var_alloca)
         # 处理没有初始化列表的声明
         elif ctx.declarationSpecifiers():
             # 尝试从声明符中获取标识符
@@ -407,7 +484,7 @@ class Visitor(CVisitor):
                     break
             if name is not None:
                 builder = self.Builders[-1]
-                var_alloca = builder.alloca(t, name=name.strip('"'))
+                var_alloca = builder.alloca(base_type, name=name.strip('"'))
                 self.SymbolTable.add_item(name, var_alloca)
                 print(f"Added variable {name} to symbol table")  # 调试输出
         return
@@ -710,7 +787,28 @@ class Visitor(CVisitor):
         i = 1
         while i < len(ctx.children):
             token = ctx.children[i].getText()
-            if token == '(':
+            if token == '[':  
+                # Array indexing  
+                index_expr_ctx = ctx.children[i+1]  
+                index_val = self.visitExpression(index_expr_ctx)  
+                index_val = self.ensure_value(index_val)  
+                i += 2  # Skip over expression and ']'  
+    
+                # Compute the pointer to the array element  
+                ptr = val  # val should be a pointer to the array  
+                
+                # Handle arrays and pointers to arrays  
+                if isinstance(ptr.type.pointee, ir.ArrayType):  
+                    zero = ir.Constant(int32, 0)  
+                    element_ptr = builder.gep(ptr, [zero, index_val], inbounds=True)  
+                    val = element_ptr  # Update val to be the pointer to the element  
+                elif isinstance(ptr.type.pointee, ir.IntType):  
+                    # Pointer to int, treat as array of unknown size  
+                    element_ptr = builder.gep(ptr, [index_val], inbounds=True)  
+                    val = element_ptr  
+                else:  
+                    raise TypeError("Cannot index non-array/non-pointer type")  
+            elif token == '(':
                 # 函数调用
                 # val应为函数
                 args = []
