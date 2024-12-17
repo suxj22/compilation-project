@@ -4,6 +4,10 @@ output/
 src/Parser/__pycache__/
 src/Parser/output/
 .vscode
+<<<<<<< HEAD
 .DS_Store
 __pycache__/
 debug.txt
+=======
+.DS_Store
+>>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf

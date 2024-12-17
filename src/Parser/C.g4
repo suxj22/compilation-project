@@ -160,8 +160,12 @@ postfixExpression
     ;
 
 primaryExpression
+<<<<<<< HEAD
     : stdFunction
     | Identifier
+=======
+    : Identifier
+>>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
     | Constant
     | CharacterConstant
     | StringLiteral
@@ -226,6 +230,7 @@ assignmentOperator
     : ASSIGN | STAR_ASSIGN | DIV_ASSIGN | MOD_ASSIGN | PLUS_ASSIGN | MINUS_ASSIGN
     ;
 
+<<<<<<< HEAD
 stdFunction
     : strlenFunction 
     | atoiFunction 
@@ -263,6 +268,8 @@ getsFunction
     : 'gets' LEFT_PAREN expression RIGHT_PAREN
     ;
 
+=======
+>>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
 // Lexer rules
 VOID       : 'void';
 CHAR       : 'char';

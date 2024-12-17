@@ -27,6 +27,7 @@ void test_all_loops() {
     // 嵌套循环
     for (int m = 0; m < 3; m += 1) {
         while (i < 10) {
+<<<<<<< HEAD
             i += 1;
         }
     }
@@ -35,4 +36,12 @@ void test_all_loops() {
 int main() {
     test_all_loops();
     return 0;
+=======
+            do {
+                i += 1;
+                if (i == 7) break;
+            } while (i < 8);
+        }
+    }
+>>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
 }

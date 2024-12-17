@@ -1,8 +1,11 @@
 
 
+<<<<<<< HEAD
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+=======
+>>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
 int factorial(int n) {
     // if-else 选择语句
     if (n <= 1) {
@@ -67,6 +70,7 @@ int main() {
     add(1, 2);
     x + y;
     
+<<<<<<< HEAD
     char chr = 'a';
     // 字符串
     char str[] = "Hello, world!";
@@ -83,6 +87,8 @@ int main() {
     // arr3[0] = 'a';
     // arr3[1] = 'b';
     // arr3[2] = 'c';
+=======
+>>>>>>> f10575594f2a1f0700797d063f1ce60cf78a70cf
     // return 语句
     return 0;
 }
