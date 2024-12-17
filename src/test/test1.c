@@ -75,14 +75,7 @@ int main() {
     printf("%s\n", str);
     printf("aaa");
     scanf ("%d", &in);
-    gets(str);
-    // 数组
-    // int arr[3] = {1, 2, 3};
-    // double arr2[] = {1.2, 2.3, 3.4};
-    // char arr3[3];
-    // arr3[0] = 'a';
-    // arr3[1] = 'b';
-    // arr3[2] = 'c';
-    // return 语句
+    // gets(str);
+
     return 0;
 }

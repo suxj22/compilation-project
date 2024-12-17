@@ -176,10 +176,6 @@ cond_merge:
   %".116" = call i32 (i8*, ...) @"printf"(i8* %".115")
   %".117" = getelementptr inbounds [3 x i8], [3 x i8]* @".str.3", i32 0, i32 0
   %".118" = call i32 (i8*, ...) @"scanf"(i8* %".117", i32* %"in")
-  %".119" = bitcast i32* %"str" to i8*
-  %".120" = call i8* @"gets"(i8* %".119")
-  %".121" = load i8, i8* %".120"
-  %".122" = zext i8 %".121" to i32
   ret i32 0
 }
 
@@ -195,4 +191,3 @@ declare i32 @"printf"(i8* %".1", ...)
 declare i32 @"scanf"(i8* %".1", ...)
 
 @".str.3" = private constant [3 x i8] c"%d\00", align 1
-declare i8* @"gets"(i8* %".1")
