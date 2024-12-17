@@ -413,18 +413,18 @@ class Visitor(CVisitor):
                 else:  
                     ctype = ir.SequenceType(inner_type, 0) 
                 return name, ctype  
-            elif len(children) == 4 and children[0].getText() == '(' and children[3].getText() == ')':  
+            elif len(children) >= 4 and children[0].getText() == '(' and children[-1].getText() == ')' :
                 # ( declarator )  
                 return self.getTypeAndNameFromDeclarator(ctype, direct_decl_ctx.declarator())  
             else:  
                 # Might need to handle nested directDeclarators  
                 return self.processDirectDeclarator(ctype, direct_decl_ctx.directDeclarator())  
         raise NotImplementedError("Unsupported directDeclarator form: {}".format(direct_decl_ctx.getText()))  
-    def initializeArray(self, array_alloca, values, element_type):  
+    def initializeArray(self, array_alloca, values, array_type):  
         """  
         array_alloca: the alloca for the array  
         values: a list of values (possibly nested lists for multi-dimensional arrays)  
-        element_type: the type of the array elements  
+        array_type: the array type (ir.ArrayType)  
         """  
         builder = self.Builders[-1]  
         zero = ir.Constant(int32, 0)  
@@ -434,19 +434,36 @@ class Visitor(CVisitor):
                 # Multi-dimensional array  
                 for i, v in enumerate(value):  
                     idx_const = ir.Constant(int32, i)  
-                    store_element(ptr, idxs + [idx_const], v, element_type.element)  
+                    store_element(ptr, idxs + [idx_const], v, element_type.element if isinstance(element_type, ir.ArrayType) else element_type) 
             else:  
                 idxs_total = [zero] + idxs  
                 element_ptr = builder.gep(ptr, idxs_total, inbounds=True)  
-                if isinstance(value, ir.Constant) and value.type != element_type:  
-                    if isinstance(element_type, ir.IntType):  
-                        value = builder.sext(value, element_type)  
+                if not isinstance(value, ir.Value):  
+                    value = ir.Constant(element_type, value)  
+                if value.type != element_type:  
+                    # Cast value to element_type if needed  
+                    if isinstance(element_type, ir.IntType) and isinstance(value.type, ir.IntType):  
+                        if value.type.width < element_type.width:  
+                            value = builder.sext(value, element_type)  
+                        elif value.type.width > element_type.width:  
+                            value = builder.trunc(value, element_type)  
                     else:  
-                        # Handle other types as needed  
+                        # Handle other type casts as needed  
                         pass  
                 builder.store(value, element_ptr)  
     
-        store_element(array_alloca, [], values, element_type)  
+        num_elements = len(values)  
+        array_size = array_type.count  
+        store_element(array_alloca, [], values, array_type.element)  
+    
+        # If fewer values provided than array size, initialize the rest to zero  
+        if num_elements < array_size:  
+            for idx in range(num_elements, array_size):  
+                idx_const = ir.Constant(int32, idx)  
+                idxs_total = [zero, idx_const]  
+                element_ptr = builder.gep(array_alloca, idxs_total, inbounds=True)  
+                zero_value = ir.Constant(array_type.element, 0)  
+                builder.store(zero_value, element_ptr)  
     def visitDeclaration(self, ctx: CParser.DeclarationContext):
         """
         declaration
@@ -459,20 +476,40 @@ class Visitor(CVisitor):
                 ctype, name = self.getTypeAndNameFromDeclarator(base_type, init_d.declarator())  
                 if name is None:  
                     continue  
-                builder = self.Builders[-1]  
+                builder = self.Builders[-1]
+                if isinstance(ctype, dict) and 'inner_type' in ctype:  
+                    inner_type = ctype['inner_type']  
+                    size = ctype['size']  
+    
+                    # Process the initializer to determine the size if necessary  
+                    if size is None:  
+                        if init_d.initializer():  
+                            val = self.visitInitializer(init_d.initializer())  
+                            if isinstance(val, list):  
+                                size = len(val)  
+                                ctype = ir.ArrayType(inner_type, size)  
+                            else:  
+                                raise SemanticError(f"Initializer for array '{name}' must be a list")  
+                        else:  
+                            raise SemanticError(f"Array '{name}' declared without size and no initializer")  
+                    else:  
+                        ctype = ir.ArrayType(inner_type, size)  
+                        val = self.visitInitializer(init_d.initializer()) if init_d.initializer() else None  
+                else:  
+                    val = self.visitInitializer(init_d.initializer()) if init_d.initializer() else None  
+    
+                # Allocate the variable  
                 var_alloca = builder.alloca(ctype, name=name.strip('"'))  
                 self.SymbolTable.add_item(name, var_alloca)  
                 print(f"Added variable {name} of type {ctype} to symbol table")  
-                if init_d.initializer():  
-                    val = self.visitInitializer(init_d.initializer())  
-                    # If initializing an array, need to store the values into the array  
+    
+                if val is not None:  
                     if isinstance(ctype, ir.ArrayType):  
-                        self.initializeArray(var_alloca, val, ctype.element)  
+                        self.initializeArray(var_alloca, val, ctype)  
                     else:  
-                        # usual scalar initialization  
                         if isinstance(val.type, ir.IntType) and val.type.width == 1:  
                             val = self.castToBoolForExpr(val)  
-                        builder.store(val, var_alloca)
+                        builder.store(val, var_alloca)  
         # 处理没有初始化列表的声明
         elif ctx.declarationSpecifiers():
             # 尝试从声明符中获取标识符
@@ -495,16 +532,28 @@ class Visitor(CVisitor):
             | LEFT_BRACE initializerList? COMMA? RIGHT_BRACE
         """
         if ctx.assignmentExpression():
-            return self.visitAssignmentExpression(ctx.assignmentExpression())
-        elif ctx.LEFT_BRACE():
-            # 处理数组初始化器
-            if ctx.initializerList():
-                values = []
-                for init in ctx.initializerList().initializer():
-                    val = self.visitInitializer(init)
-                    if val is not None:
-                        values.append(val)
+            val = self.visitAssignmentExpression(ctx.assignmentExpression())  
+            if isinstance(val, ir.Constant):  
+                return val.constant  
+            else:  
+                return val 
+        elif ctx.LEFT_BRACE():  
+            # Handle array initializer  
+            if ctx.initializerList():  
+                values = []  
+                for init in ctx.initializerList().initializer():  
+                    val = self.visitInitializer(init)  
+                    if val is not None:  
+                        if isinstance(val, list):  
+                            values.append(val)  
+                        else:  
+                            # Convert constants to Python primitive types  
+                            if isinstance(val, ir.Constant):  
+                                val = val.constant  
+                            values.append(val)  
                 return values
+        else:
+            return []
         return None
 
     def visitAssignmentExpression(self, ctx: CParser.AssignmentExpressionContext):
@@ -521,19 +570,20 @@ class Visitor(CVisitor):
             builder = self.Builders[-1]
 
             if op == '=':
-                # 确保 rhs_val 是 i32 类型
-                if isinstance(rhs_val.type, ir.IntType) and isinstance(lhs_ptr.type.pointee, ir.IntType):
-                    if rhs_val.type.width != lhs_ptr.type.pointee.width:
-                        rhs_val = builder.sext(rhs_val, lhs_ptr.type.pointee) if rhs_val.type.width < lhs_ptr.type.pointee.width else builder.trunc(rhs_val, lhs_ptr.type.pointee)
-
-                # if rhs_val.type != lhs_ptr.type.pointee:
-                #     if isinstance(lhs_ptr.type.pointee, ir.IntType) and isinstance(rhs_val.type, ir.IntType):
-                #         rhs_val = builder.sext(rhs_val, lhs_ptr.type.pointee) if rhs_val.type.width < lhs_ptr.type.pointee.width else builder.trunc(rhs_val, lhs_ptr.type.pointee)
-                #     else:
-                #         # 其他类型转换，根据需要处理
-                #         pass
-                builder.store(rhs_val, lhs_ptr)
-                return rhs_val
+                if isinstance(lhs_ptr.type.pointee, ir.ArrayType):  
+                    # For simplicity, assume we're assigning an array to an array (not standard in C)  
+                    # Additional code would be needed to handle this case properly  
+                    #TODO 
+                    raise NotImplementedError("Assignment to array types is not implemented")  
+                else:  
+                    # Scalar assignment  
+                    if isinstance(rhs_val, int) or isinstance(rhs_val, float):  
+                        rhs_val = ir.Constant(lhs_ptr.type.pointee, rhs_val)  
+                    if isinstance(rhs_val.type, ir.IntType) and isinstance(lhs_ptr.type.pointee, ir.IntType):  
+                        if rhs_val.type.width != lhs_ptr.type.pointee.width:  
+                            rhs_val = builder.sext(rhs_val, lhs_ptr.type.pointee) if rhs_val.type.width < lhs_ptr.type.pointee.width else builder.trunc(rhs_val, lhs_ptr.type.pointee)  
+                    builder.store(rhs_val, lhs_ptr)  
+                    return rhs_val 
             else:
                 # compound assignment
                 old_val = builder.load(lhs_ptr)
@@ -796,18 +846,11 @@ class Visitor(CVisitor):
     
                 # Compute the pointer to the array element  
                 ptr = val  # val should be a pointer to the array  
-                
-                # Handle arrays and pointers to arrays  
-                if isinstance(ptr.type.pointee, ir.ArrayType):  
-                    zero = ir.Constant(int32, 0)  
-                    element_ptr = builder.gep(ptr, [zero, index_val], inbounds=True)  
-                    val = element_ptr  # Update val to be the pointer to the element  
-                elif isinstance(ptr.type.pointee, ir.IntType):  
-                    # Pointer to int, treat as array of unknown size  
-                    element_ptr = builder.gep(ptr, [index_val], inbounds=True)  
-                    val = element_ptr  
-                else:  
-                    raise TypeError("Cannot index non-array/non-pointer type")  
+                zero = ir.Constant(int32, 0)  
+                idxs = [zero, index_val]  
+    
+                element_ptr = builder.gep(ptr, idxs, inbounds=True)  
+                val = element_ptr  # Update val to be the pointer to the element  
             elif token == '(':
                 # 函数调用
                 # val应为函数
