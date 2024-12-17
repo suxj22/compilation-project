@@ -294,70 +294,69 @@ class Visitor(CVisitor):
         """处理函数定义"""
         print("\n=== Starting Function Definition ===")
         print(f"Function definition text: {ctx.getText()}")
-        
+
         # 获取返回类型
         ret_type = self.getTypeFromDeclarationSpecifiers(ctx.declarationSpecifiers())
         print(f"Return type: {ret_type}")
-        
+
         # 获取函数信息
         func_name, func_type, arg_names = self.getFunctionInfoFromDeclarator(ctx.declarator(), ret_type)
         if not func_name:
             print("Error: Could not extract function name")
             return
-        func_name = func_name.strip('"')
         print(f"Function name: {func_name}")
-        print(f"Argument names: {arg_names}")
-        
+
         # 创建函数
         ir_func = ir.Function(self.Module, func_type, name=func_name)
         self.Funs[func_name] = ir_func
-        
+
         # 创建入口块
         entry_block = ir_func.append_basic_block('entry')
         builder = ir.IRBuilder(entry_block)
         self.Builders.append(builder)
         self.Blocks.append(builder.block)
-        
+
         # 进入函数作用域
         self.SymbolTable.enter_scope()
         print("\nBefore adding parameters:")
         self.SymbolTable.print_scopes()
-        
+
         # 处理函数参数
-        for i, (arg, arg_name) in enumerate(zip(ir_func.args, arg_names)):
-            print(f"\nProcessing parameter {i}: {arg_name}")
-            
+        for arg, arg_name in zip(ir_func.args, arg_names):
+            print(f"\nProcessing parameter: {arg_name}")
+
             # 设置参数名
             arg.name = arg_name
-            
-            # 为参数创建alloca
+
+            # 为参数创建 alloca
             arg_alloca = builder.alloca(arg.type, name=f"{arg_name}_addr")
             builder.store(arg, arg_alloca)
-            
+
             # 将参数添加到符号表
             self.SymbolTable.add_item(arg_name, arg_alloca)
             print(f"Added {arg_name} to symbol table")
-        
+
         print("\nAfter adding parameters:")
         self.SymbolTable.print_scopes()
-        
+
         # 访问函数体
         self.visitCompoundStatement(ctx.compoundStatement())
-        
+
         # 处理返回语句
         if not builder.block.terminator:
             if ret_type == void:
                 builder.ret_void()
             else:
                 raise SemanticError(f"Function {func_name} must return a value of type {ret_type}")
-        
+
         # 退出作用域
         self.SymbolTable.exit_scope()
         self.Builders.pop()
         self.Blocks.pop()
-        
+
         print("=== Finished Function Definition ===\n")
         return
+
 
     def visitCompoundStatement(self, ctx: CParser.CompoundStatementContext):
         """
@@ -378,39 +377,56 @@ class Visitor(CVisitor):
         declaration
             : declarationSpecifiers initDeclaratorList? SEMI
         """
-        t = self.getTypeFromDeclarationSpecifiers(ctx.declarationSpecifiers())
+        base_type = self.getTypeFromDeclarationSpecifiers(ctx.declarationSpecifiers())
 
         # 处理带有初始化列表的声明
         if ctx.initDeclaratorList():
             for init_d in ctx.initDeclaratorList().initDeclarator():
-                name = self.getIdentifierFromDeclarator(init_d.declarator())
+                declarator = init_d.declarator()
+                name = self.getIdentifierFromDeclarator(declarator)
                 if name is None:
-                    continue 
+                    continue
+
+                # 解析指针层级
+                var_type = self.getTypeFromDeclarator(declarator, base_type)
+
                 builder = self.Builders[-1]
-                var_alloca = builder.alloca(t, name=name.strip('"'))
+                var_alloca = builder.alloca(var_type, name=name)
                 self.SymbolTable.add_item(name, var_alloca)
-                print(f"Added variable {name} to symbol table")  # 调试输出
+                print(f"Added variable {name} of type {var_type} to symbol table")
+
                 if init_d.initializer():
                     val = self.visitInitializer(init_d.initializer())
-                    # 如果 val 是布尔表达式，确保是 i32 类型
-                    if isinstance(val.type, ir.IntType) and val.type.width == 1:
-                        val = self.castToBoolForExpr(val)
+                    print(f"Initializer value: {val}")
+                    # 确保初始化值的类型与变量类型匹配
+                    if val.type != var_type:
+                        if isinstance(var_type, ir.PointerType) and isinstance(val.type, ir.PointerType):
+                            # 指针类型匹配，通常无需转换
+                            pass
+                        elif isinstance(var_type, ir.IntType) and isinstance(val.type, ir.IntType):
+                            # 整数类型转换
+                            if val.type.width < var_type.width:
+                                val = builder.sext(val, var_type)  # 符号扩展
+                            elif val.type.width > var_type.width:
+                                val = builder.trunc(val, var_type)  # 截断
+                        else:
+                            raise SemanticError(f"Type mismatch: cannot store {val.type} to {var_type}")
                     builder.store(val, var_alloca)
         # 处理没有初始化列表的声明
         elif ctx.declarationSpecifiers():
             # 尝试从声明符中获取标识符
-            name = None
+            for init_d in ctx.declaratorList().declarator():
+                name = self.getIdentifierFromDeclarator(init_d)
+                if name:
+                    declarator = init_d
+                    var_type = self.getTypeFromDeclarator(declarator, base_type)
 
-            for decl_spec in ctx.declarationSpecifiers().declarationSpecifier():
-                if decl_spec.typeSpecifier() and decl_spec.typeSpecifier().typedefName():
-                    name = decl_spec.typeSpecifier().typedefName().Identifier().getText()
-                    break
-            if name is not None:
-                builder = self.Builders[-1]
-                var_alloca = builder.alloca(t, name=name.strip('"'))
-                self.SymbolTable.add_item(name, var_alloca)
-                print(f"Added variable {name} to symbol table")  # 调试输出
+                    builder = self.Builders[-1]
+                    var_alloca = builder.alloca(var_type, name=name)
+                    self.SymbolTable.add_item(name, var_alloca)
+                    print(f"Added variable {name} of type {var_type} to symbol table")
         return
+
     def visitInitializer(self, ctx: CParser.InitializerContext):
         """
         initializer
@@ -437,6 +453,7 @@ class Visitor(CVisitor):
             | unaryExpression assignmentOperator assignmentExpression
         """
         if ctx.assignmentOperator():
+            print("Assignment expression:", ctx.getText())
             # unaryExpression assignmentOperator assignmentExpression
             lhs_ptr = self.visitUnaryExpression(ctx.unaryExpression())
             rhs_val = self.visitAssignmentExpression(ctx.assignmentExpression())
@@ -475,6 +492,7 @@ class Visitor(CVisitor):
                 builder.store(new_val, lhs_ptr)
                 return new_val
         else:
+            print("Conditional expression:", ctx.getText())
             return self.visitConditionalExpression(ctx.conditionalExpression())
             # return self.castToBoolForExpr(self.visitConditionalExpression(ctx.conditionalExpression()))
 
@@ -707,21 +725,27 @@ class Visitor(CVisitor):
 
         # 处理函数调用、数组访问、postfix ++/--等
         # 简化只演示函数调用
+        # TODO: 完善传入参数是字符串的情况
         i = 1
         while i < len(ctx.children):
             token = ctx.children[i].getText()
             if token == '(':
                 # 函数调用
                 # val应为函数
+                print(f"Function call: {val.name}")
                 args = []
                 # argumentExpressionList?
                 if isinstance(ctx.children[i+1], CParser.ArgumentExpressionListContext):
                     for a in ctx.children[i+1].assignmentExpression():
+                        print(a.getText())
                         args.append(self.visitAssignmentExpression(a))
+                        print(f"Argument: {args[-1]}")
                     i += 2 # 跳过argumentExpressionList和')'
                 else:
                     i += 1 # 仅')'
+                print(args)
                 val = builder.call(val, args)
+                
             elif token == '++':
                 # 后置自增
                 ptr = val
@@ -1043,57 +1067,71 @@ class Visitor(CVisitor):
         specifiers = ctx.declarationSpecifier()
         types = [s.getText() for s in specifiers if s.typeSpecifier()]
         if 'void' in types:
+            print("Found void type")
             return void
         elif 'int' in types:
+            print("Found int type")
             return int32
+        elif 'char' in types:
+            print("Found char type")
+            return int8
+        elif 'double' in types:
+            print("Found double type")
+            return double
+        
         # 根据需求扩展char、double等类型
+        print("Unknown type, using int32")
         return int32
 
     def getFunctionInfoFromDeclarator(self, ctx, ret_type):
-        """从declarator中提取函数名与参数列表"""
+        """从 declarator 中提取函数名与参数列表"""
         print("\n=== Getting Function Info ===")
         print(f"Raw declarator text: {ctx.getText()}")
-        
+
         direct_decl = ctx.directDeclarator()
         if not direct_decl:
             print("No direct declarator found")
             return None, None, []
-        
+
         print(f"Direct declarator text: {direct_decl.getText()}")
-        
-        # 递归获取函数名
+
+        # 获取函数名
         func_name = self._get_function_name(direct_decl)
         if not func_name:
             print("Could not find function name")
             return None, None, []
-            
+
         print(f"Function name: {func_name}")
-        
+
         # 获取参数列表
         arg_names = []
         arg_types = []
-        
-        # 遍历所有子节点寻找参数列表
+
+        # 查找参数列表
         param_list_ctx = self._find_parameter_list(direct_decl)
         if param_list_ctx:
             print("Found parameter list, processing parameters...")
             for param_decl in param_list_ctx.parameterDeclaration():
-                # 获取参数类型
-                param_type = self.getTypeFromDeclarationSpecifiers(param_decl.declarationSpecifiers())
+                # 获取参数的基本类型
+                param_base_type = self.getTypeFromDeclarationSpecifiers(param_decl.declarationSpecifiers())
+
+                # 获取参数的声明符
+                param_declarator = param_decl.declarator()
+                param_type = self.getTypeFromDeclarator(param_declarator, param_base_type)
+
                 # 获取参数名
-                param_name = self._get_identifier_from_declarator(param_decl.declarator())
-                
+                param_name = self._get_identifier_from_declarator(param_declarator)
+
                 print(f"Found parameter: {param_name} of type {param_type}")
                 if param_name:
-                    arg_names.append(param_name.strip('"'))
-                    # arg_names.append(param_name)
+                    arg_names.append(param_name)
                     arg_types.append(param_type)
-        
+
         # 创建函数类型
         func_type = ir.FunctionType(ret_type, arg_types)
         print(f"Created function type: {func_type}")
         print(f"Parameter names: {arg_names}")
-        
+
         return func_name, func_type, arg_names
 
     def _get_function_name(self, direct_decl):
@@ -1148,14 +1186,23 @@ class Visitor(CVisitor):
             
         return self._get_function_name(direct_decl)  # 复用函数名获取逻辑
 
-    def getIdentifierFromDeclarator(self, ctx):
-        # 简化：直接从directDeclarator获取Identifier
-        d = ctx.directDeclarator()
-        # return self.getIdentifierFromDirectDeclarator(d)
+    def getIdentifierFromDeclarator(self, declarator):
+        # 简化：直接从 directDeclarator 获取 Identifier
+        d = declarator.directDeclarator()
         name = self.getIdentifierFromDirectDeclarator(d)
         if name:
-            return name.strip('"')  # Remove quotes here, at the source
+            return name  # 移除 strip('"')，除非确实需要
         return None
+
+    def getIdentifierFromDirectDeclarator(self, dctx):
+        if dctx.Identifier():
+            return dctx.Identifier().getText()
+        else:
+            for c in dctx.getChildren():
+                if isinstance(c, CParser.DirectDeclaratorContext):
+                    return self.getIdentifierFromDirectDeclarator(c)
+        return None
+
 
     def getIdentifierFromDirectDeclarator(self, dctx):
         if dctx.Identifier():
@@ -1568,3 +1615,26 @@ class Visitor(CVisitor):
                                 init_val = builder.sext(init_val, var_alloca.type.pointee) if init_val.type.width < var_alloca.type.pointee.width else builder.trunc(init_val, var_alloca.type.pointee)
                         builder.store(init_val, var_alloca)
         return
+    # 增加对于指针的解析
+    def getTypeFromDeclarator(self, declarator_ctx, base_type):
+        """
+        解析 declarator 以确定指针层级，并返回最终的 LLVM 类型。
+        """
+        type_ = base_type
+        current = declarator_ctx
+
+        while current:
+            pointer_ctx = current.pointer()
+            if pointer_ctx:
+                # 统计 '*' 的数量
+                # 在标准语法中，每个 '*' 对应一个 PointerContext
+                type_ = ir.PointerType(type_)
+                # 继续遍历下一个指针（如果有）
+                if hasattr(pointer_ctx, 'pointer') and callable(getattr(pointer_ctx, 'pointer')):
+                    current = pointer_ctx.pointer()
+                else:
+                    break
+            else:
+                break
+
+        return type_

@@ -10,6 +10,7 @@ from antlr4.tree.Tree import TerminalNodeImpl  # 确保正确导入 TerminalNode
 from Parser.generated.CLexer import CLexer
 from Parser.generated.CParser import CParser
 from Generator.Visitor import Visitor
+# from Generator.Visitor_ import Visitor
 def tree_to_dict(tree, parser):
     """
     将解析树转换为嵌套字典。
