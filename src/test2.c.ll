@@ -60,10 +60,10 @@ for_cond:
   %".30" = icmp ne i32 %".29", 0
   br i1 %".30", label %"for_body", label %"for_end"
 for_body:
-  %"sum" = alloca i32
   %".32" = load i32, i32* %"k"
   %".33" = load i32, i32* %"j"
   %".34" = call i32 @"compute_sum"(i32 %".32", i32 %".33")
+  %"sum" = alloca i32
   store i32 %".34", i32* %"sum"
   br label %"for_inc"
 for_inc:

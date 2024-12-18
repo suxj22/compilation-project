@@ -65,16 +65,17 @@ int main() {
     
     // 表达式语句
     add(1, 2);
-    x + y;
-    
+    int sum_xy = x + y;
+    printf("sum_xy: %d\n", sum_xy);
     char chr = 'a';
+    printf("chr: %c\n", chr);
     // 字符串
-    char str[] = "Hello, world!";
-    int len = strlen(str);
-    int in = atoi(str);
-    printf("%s\n", str);
+    // char str[13] = "Hello, world!";
+    // int len = strlen(str);
+    // int in = atoi(str);
+    // printf("%s\n", str);
     printf("aaa");
-    scanf ("%d", &in);
+    // scanf ("%d", &in);
     // gets(str);
 
     return 0;
