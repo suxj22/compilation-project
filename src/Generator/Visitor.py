@@ -1,11 +1,11 @@
 from Parser.generated.CParser import CParser
 from Parser.generated.CVisitor import CVisitor
-from llvmlite import ir, binding
+from llvmlite import ir,binding
 from Generator.SymbolTable import SymbolTable
 from Generator.SemanticError import SemanticError
-from antlr4.tree.Tree import TerminalNodeImpl
+from antlr4.tree.Tree import TerminalNodeImpl  
 
-# 定义LLVM基本类型
+# 定义一些LLVM类型作为示例，可根据需求扩展
 int64 = ir.IntType(64)
 int32 = ir.IntType(32)
 int8 = ir.IntType(8)
@@ -13,17 +13,14 @@ int1 = ir.IntType(1)
 void = ir.VoidType()
 double = ir.DoubleType()
 
+# Visitor的定义部分
 class Visitor(CVisitor):
     def __init__(self):
         super().__init__()
         self.Module = ir.Module(name="my_module")
-<<<<<<< Updated upstream
-        self.Module.triple = "aarch64-apple-macosx14.0.0" 
-=======
         # 默认的三元组为aarch64-apple-macosx14.0.0
         # 可以根据需要修改为其他三元组比如x86_64-pc-linux-gnu
         self.Module.triple = "x86_64-pc-linux-gnu" 
->>>>>>> Stashed changes
         self.Module.data_layout = "e-m:o-i64:64-i128:128-n32:64-S128"
         self.Blocks = []
         self.Builders = []
@@ -32,10 +29,12 @@ class Visitor(CVisitor):
         self.Constants = 0
         self.loop_stack = []  # 存储循环的基本块信息
 
+    # 保存IR代码到文件
     def save(self, filename):
         with open(filename, "w") as f:
             f.write(str(self.Module))
 
+    # TODO:这个函数有什么用？
     def visitCompilationUnit(self, ctx: CParser.CompilationUnitContext):
         """
         compilationUnit : translationUnit? EOF ;
@@ -44,6 +43,7 @@ class Visitor(CVisitor):
             self.visit(ctx.translationUnit())
         return
 
+    # TODO: 这个函数有什么用？
     def visitTranslationUnit(self, ctx: CParser.TranslationUnitContext):
         """
         translationUnit
@@ -56,6 +56,7 @@ class Visitor(CVisitor):
                 self.visitDeclaration(child)
         return
     
+    # 访问标准STD库函数
     def visitStdFunction(self, ctx: CParser.StdFunctionContext):
         """
         stdFunction
@@ -67,6 +68,7 @@ class Visitor(CVisitor):
         """
         return self.visit(ctx.getChild(0))
 
+    # 访问Strlen函数
     def visitStrlenFunction(self, ctx: CParser.StrlenFunctionContext):
         """
         strlen
@@ -97,6 +99,7 @@ class Visitor(CVisitor):
         retname = builder.call(strlen, [ptr])  
         return retname 
     
+    # 访问atoi函数
     def visitAtoiFunction(self, ctx: CParser.AtoiFunctionContext):
         """
         atoi
@@ -136,6 +139,8 @@ class Visitor(CVisitor):
     
         ret_value = builder.call(atoi, [ptr])  
         return ret_value  
+    
+    # 访问printf函数
     def visitPrintfFunction(self, ctx: CParser.PrintfFunctionContext):
         """
         printf
@@ -181,6 +186,7 @@ class Visitor(CVisitor):
         ret_value = builder.call(printf, args)  
         return ret_value 
     
+    # 创建全局字符串常量，返回指向它的指针
     def create_string_constant(self, string_content):  
         """  
         Helper method to create a global string constant and return a pointer to it.  
@@ -205,6 +211,7 @@ class Visitor(CVisitor):
         string_ptr = builder.gep(str_global, [zero, zero], inbounds=True)  
         return string_ptr 
     
+    # 访问scanf函数
     def visitScanfFunction(self, ctx: CParser.ScanfFunctionContext):
         """
         scanf
@@ -253,7 +260,8 @@ class Visitor(CVisitor):
     
         ret_value = builder.call(scanf, args)  
         return ret_value  
-        
+    
+    # 访问gets函数
     def visitGetsFunction(self, ctx: CParser.GetsFunctionContext):
         """
         gets
@@ -296,72 +304,78 @@ class Visitor(CVisitor):
     
         ret_value = builder.call(gets, [ptr]) 
         return ret_value
+    
+    # 处理函数定义的函数
     def visitFunctionDefinition(self, ctx: CParser.FunctionDefinitionContext):
         """处理函数定义"""
         print("\n=== Starting Function Definition ===")
         print(f"Function definition text: {ctx.getText()}")
-
+        
         # 获取返回类型
         ret_type = self.getTypeFromDeclarationSpecifiers(ctx.declarationSpecifiers())
         print(f"Return type: {ret_type}")
-
+        
         # 获取函数信息
         func_name, func_type, arg_names = self.getFunctionInfoFromDeclarator(ctx.declarator(), ret_type)
         if not func_name:
             print("Error: Could not extract function name")
             return
+        func_name = func_name.strip('"')
         print(f"Function name: {func_name}")
-
+        print(f"Argument names: {arg_names}")
+        
         # 创建函数
         ir_func = ir.Function(self.Module, func_type, name=func_name)
         self.Funs[func_name] = ir_func
-
+        
         # 创建入口块
         entry_block = ir_func.append_basic_block('entry')
         builder = ir.IRBuilder(entry_block)
         self.Builders.append(builder)
         self.Blocks.append(builder.block)
+        
         # 进入函数作用域
         self.SymbolTable.enter_scope()
         print("\nBefore adding parameters:")
         self.SymbolTable.print_scopes()
-
+        
         # 处理函数参数
-        for arg, arg_name in zip(ir_func.args, arg_names):
-            print(f"\nProcessing parameter: {arg_name}")
-
+        for i, (arg, arg_name) in enumerate(zip(ir_func.args, arg_names)):
+            print(f"\nProcessing parameter {i}: {arg_name}")
+            
             # 设置参数名
             arg.name = arg_name
-
-            # 为参数创建 alloca
+            
+            # 为参数创建alloca
             arg_alloca = builder.alloca(arg.type, name=f"{arg_name}_addr")
             builder.store(arg, arg_alloca)
-
+            
             # 将参数添加到符号表
             self.SymbolTable.add_item(arg_name, arg_alloca)
             print(f"Added {arg_name} to symbol table")
-
+        
         print("\nAfter adding parameters:")
         self.SymbolTable.print_scopes()
-
+        
         # 访问函数体
         self.visitCompoundStatement(ctx.compoundStatement())
-
+        
         # 处理返回语句
         if not builder.block.terminator:
             if ret_type == void:
                 builder.ret_void()
             else:
                 raise SemanticError(f"Function {func_name} must return a value of type {ret_type}")
+        
         # 退出作用域
         self.SymbolTable.exit_scope()
         self.Builders.pop()
         self.Blocks.pop()
-
+        
         print("=== Finished Function Definition ===\n")
         return
 
-
+    # 处理复合声明语句
     def visitCompoundStatement(self, ctx: CParser.CompoundStatementContext):
         """
         compoundStatement
@@ -375,62 +389,169 @@ class Visitor(CVisitor):
                 self.visitStatement(child)
         self.SymbolTable.exit_scope()
         return
-
+    
+    # 从声明规范中获取类型,返回ir类型
+    def getTypeAndNameFromDeclarator(self, base_type, declarator_ctx):  
+        ctype = base_type  
+        # Handle pointers  
+        if declarator_ctx.pointer():  
+            ctype = self.processPointer(ctype, declarator_ctx.pointer())  
+        name, ctype = self.processDirectDeclarator(ctype, declarator_ctx.directDeclarator())  
+        return ctype, name  
+    
+    # 检查指针类型
+    def processPointer(self, ctype, pointer_ctx):  
+        # For each '*' in pointer, wrap ctype in a PointerType  
+        # pointer : (STAR typeQualifierList?)+  
+        num_pointers = len([child for child in pointer_ctx.children if child.getText() == '*'])  
+        for _ in range(num_pointers):  
+            ctype = ir.PointerType(ctype)  
+        return ctype  
+    
+    # 处理直接的声明符
+    def processDirectDeclarator(self, ctype, direct_decl_ctx):  
+        children = direct_decl_ctx.children  
+        if len(children) == 1:  
+            if direct_decl_ctx.Identifier():  
+                name = direct_decl_ctx.Identifier().getText()  
+                return name, ctype  
+            elif direct_decl_ctx.declarator():  
+                # ( declarator ), so process the inner one  
+                return self.getTypeAndNameFromDeclarator(ctype, direct_decl_ctx.declarator())  
+        else:  
+            if len(children) >= 3 and children[1].getText() == '[':  
+                # directDeclarator [ constantExpression? ]  
+                # First process the left directDeclarator to get name and inner type  
+                name, inner_type = self.processDirectDeclarator(ctype, direct_decl_ctx.directDeclarator())  
+                # Then process the constantExpression to get the array size  
+                if direct_decl_ctx.constantExpression():  
+                    size_text = direct_decl_ctx.constantExpression().getText()  
+                    try:  
+                        size = int(size_text)  
+                    except ValueError:  
+                        raise NotImplementedError("Array size must be integer constant")  
+                    ctype = ir.ArrayType(inner_type, size)  
+                else:  
+                    ctype = {'array_unsized': True, 'inner_type': inner_type}  
+                return name, ctype  
+            elif len(children) >= 4 and children[0].getText() == '(' and children[-1].getText() == ')' :
+                # ( declarator )  
+                return self.getTypeAndNameFromDeclarator(ctype, direct_decl_ctx.declarator())  
+            else:  
+                # Might need to handle nested directDeclarators  
+                return self.processDirectDeclarator(ctype, direct_decl_ctx.directDeclarator())  
+        raise NotImplementedError("Unsupported directDeclarator form: {}".format(direct_decl_ctx.getText())) 
+    
+    # 初始化数组
+    def initializeArray(self, array_alloca, values, array_type):  
+        """  
+        array_alloca: the alloca for the array  
+        values: a list of values (possibly nested lists for multi-dimensional arrays)  
+        array_type: the array type (ir.ArrayType)  
+        """  
+        builder = self.Builders[-1]  
+        zero = ir.Constant(int32, 0)  
+    
+        def store_element(ptr, idxs, value, element_type):  
+            if isinstance(value, list):  
+                # Multi-dimensional array  
+                for i, v in enumerate(value):  
+                    idx_const = ir.Constant(int32, i)  
+                    store_element(ptr, idxs + [idx_const], v, element_type.element if isinstance(element_type, ir.ArrayType) else element_type) 
+            else:  
+                idxs_total = [zero] + idxs  
+                element_ptr = builder.gep(ptr, idxs_total, inbounds=True)  
+                if not isinstance(value, ir.Value):  
+                    value = ir.Constant(element_type, value)  
+                if value.type != element_type:  
+                    # Cast value to element_type if needed  
+                    if isinstance(element_type, ir.IntType) and isinstance(value.type, ir.IntType):  
+                        if value.type.width < element_type.width:  
+                            value = builder.sext(value, element_type)  
+                        elif value.type.width > element_type.width:  
+                            value = builder.trunc(value, element_type)  
+                    else:  
+                        # Handle other type casts as needed  
+                        pass  
+                builder.store(value, element_ptr)  
+    
+        num_elements = len(values)  
+        array_size = array_type.count  
+        store_element(array_alloca, [], values, array_type.element)  
+    
+        # If fewer values provided than array size, initialize the rest to zero  
+        if num_elements < array_size:  
+            for idx in range(num_elements, array_size):  
+                idx_const = ir.Constant(int32, idx)  
+                idxs_total = [zero, idx_const]  
+                element_ptr = builder.gep(array_alloca, idxs_total, inbounds=True)  
+                zero_value = ir.Constant(array_type.element, 0)  
+                builder.store(zero_value, element_ptr)  
+    
+    # 处理变量声明
     def visitDeclaration(self, ctx: CParser.DeclarationContext):
         """
         declaration
             : declarationSpecifiers initDeclaratorList? SEMI
         """
-        base_type = self.getTypeFromDeclarationSpecifiers(ctx.declarationSpecifiers())
-
-        # 处理带有初始化列表的声明
-        if ctx.initDeclaratorList():
-            for init_d in ctx.initDeclaratorList().initDeclarator():
-                declarator = init_d.declarator()
-                name = self.getIdentifierFromDeclarator(declarator)
-                if name is None:
-                    continue
-
-                # 解析指针层级
-                var_type = self.getTypeFromDeclarator(declarator, base_type)
-
+        base_type = self.getTypeFromDeclarationSpecifiers(ctx.declarationSpecifiers())  
+      
+        if ctx.initDeclaratorList():  
+            for init_d in ctx.initDeclaratorList().initDeclarator():  
+                ctype, name = self.getTypeAndNameFromDeclarator(base_type, init_d.declarator())  
+                if name is None:  
+                    continue  
                 builder = self.Builders[-1]
-                var_alloca = builder.alloca(var_type, name=name)
-                self.SymbolTable.add_item(name, var_alloca)
-                print(f"Added variable {name} of type {var_type} to symbol table")
-
-                if init_d.initializer():
-                    val = self.visitInitializer(init_d.initializer())
-                    print(f"Initializer value: {val}")
-                    # 确保初始化值的类型与变量类型匹配
-                    if val.type != var_type:
-                        if isinstance(var_type, ir.PointerType) and isinstance(val.type, ir.PointerType):
-                            # 指针类型匹配，通常无需转换
-                            pass
-                        elif isinstance(var_type, ir.IntType) and isinstance(val.type, ir.IntType):
-                            # 整数类型转换
-                            if val.type.width < var_type.width:
-                                val = builder.sext(val, var_type)  # 符号扩展
-                            elif val.type.width > var_type.width:
-                                val = builder.trunc(val, var_type)  # 截断
-                        else:
-                            raise SemanticError(f"Type mismatch: cannot store {val.type} to {var_type}")
-                    builder.store(val, var_alloca)
+                if isinstance(ctype, dict) and 'inner_type' in ctype:  
+                    inner_type = ctype['inner_type']  
+                    size = ctype['size']  
+    
+                    # Process the initializer to determine the size if necessary  
+                    if size is None:  
+                        if init_d.initializer():  
+                            val = self.visitInitializer(init_d.initializer())  
+                            if isinstance(val, list):  
+                                size = len(val)  
+                                ctype = ir.ArrayType(inner_type, size)  
+                            else:  
+                                raise SemanticError(f"Initializer for array '{name}' must be a list")  
+                        else:  
+                            raise SemanticError(f"Array '{name}' declared without size and no initializer")  
+                    else:  
+                        ctype = ir.ArrayType(inner_type, size)  
+                        val = self.visitInitializer(init_d.initializer()) if init_d.initializer() else None  
+                else:  
+                    val = self.visitInitializer(init_d.initializer()) if init_d.initializer() else None  
+    
+                # Allocate the variable  
+                var_alloca = builder.alloca(ctype, name=name.strip('"'))  
+                self.SymbolTable.add_item(name, var_alloca)  
+                print(f"Added variable {name} of type {ctype} to symbol table")  
+    
+                if val is not None:  
+                    if isinstance(ctype, ir.ArrayType):  
+                        self.initializeArray(var_alloca, val, ctype)  
+                    else:  
+                        if isinstance(ctype, ir.IntType) and val.type.width == 1:  
+                            val = self.castToBoolForExpr(val)  
+                        builder.store(val, var_alloca)  
         # 处理没有初始化列表的声明
         elif ctx.declarationSpecifiers():
             # 尝试从声明符中获取标识符
-            for init_d in ctx.declaratorList().declarator():
-                name = self.getIdentifierFromDeclarator(init_d)
-                if name:
-                    declarator = init_d
-                    var_type = self.getTypeFromDeclarator(declarator, base_type)
+            name = None
 
-                    builder = self.Builders[-1]
-                    var_alloca = builder.alloca(var_type, name=name)
-                    self.SymbolTable.add_item(name, var_alloca)
-                    print(f"Added variable {name} of type {var_type} to symbol table")
+            for decl_spec in ctx.declarationSpecifiers().declarationSpecifier():
+                if decl_spec.typeSpecifier() and decl_spec.typeSpecifier().typedefName():
+                    name = decl_spec.typeSpecifier().typedefName().Identifier().getText()
+                    break
+            if name is not None:
+                builder = self.Builders[-1]
+                var_alloca = builder.alloca(base_type, name=name.strip('"'))
+                self.SymbolTable.add_item(name, var_alloca)
+                print(f"Added variable {name} to symbol table")  # 调试输出
         return
-
+    
+    # 处理初始化器
     def visitInitializer(self, ctx: CParser.InitializerContext):
         """
         initializer
@@ -438,18 +559,28 @@ class Visitor(CVisitor):
             | LEFT_BRACE initializerList? COMMA? RIGHT_BRACE
         """
         if ctx.assignmentExpression():
-            return self.visitAssignmentExpression(ctx.assignmentExpression())
-        elif ctx.LEFT_BRACE():
-            # 处理数组初始化器
-            if ctx.initializerList():
-                values = []
-                for init in ctx.initializerList().initializer():
-                    val = self.visitInitializer(init)
-                    if val is not None:
-                        values.append(val)
+            val = self.visitAssignmentExpression(ctx.assignmentExpression())  
+            return val
+        elif ctx.LEFT_BRACE():  
+            # Handle array initializer  
+            if ctx.initializerList():  
+                values = []  
+                for init in ctx.initializerList().initializer():  
+                    val = self.visitInitializer(init)  
+                    if val is not None:  
+                        if isinstance(val, list):  
+                            values.append(val)  
+                        else:  
+                            # 如果 val 是 ir.Constant，则获取其实际值  
+                            if isinstance(val, ir.Constant):  
+                                val = val.constant  
+                            values.append(val)
                 return values
+        else:
+            return []
         return None
 
+    # 处理赋值表达式TODO: 需要修改支持更多情况，目前只有赋值和条件表达式被处理
     def visitAssignmentExpression(self, ctx: CParser.AssignmentExpressionContext):
         """
         assignmentExpression
@@ -457,7 +588,6 @@ class Visitor(CVisitor):
             | unaryExpression assignmentOperator assignmentExpression
         """
         if ctx.assignmentOperator():
-            print("Assignment expression:", ctx.getText())
             # unaryExpression assignmentOperator assignmentExpression
             lhs_ptr = self.visitUnaryExpression(ctx.unaryExpression())
             rhs_val = self.visitAssignmentExpression(ctx.assignmentExpression())
@@ -465,19 +595,20 @@ class Visitor(CVisitor):
             builder = self.Builders[-1]
 
             if op == '=':
-                # 确保 rhs_val 是 i32 类型
-                if isinstance(rhs_val.type, ir.IntType) and isinstance(lhs_ptr.type.pointee, ir.IntType):
-                    if rhs_val.type.width != lhs_ptr.type.pointee.width:
-                        rhs_val = builder.sext(rhs_val, lhs_ptr.type.pointee) if rhs_val.type.width < lhs_ptr.type.pointee.width else builder.trunc(rhs_val, lhs_ptr.type.pointee)
-
-                # if rhs_val.type != lhs_ptr.type.pointee:
-                #     if isinstance(lhs_ptr.type.pointee, ir.IntType) and isinstance(rhs_val.type, ir.IntType):
-                #         rhs_val = builder.sext(rhs_val, lhs_ptr.type.pointee) if rhs_val.type.width < lhs_ptr.type.pointee.width else builder.trunc(rhs_val, lhs_ptr.type.pointee)
-                #     else:
-                #         # 其他类型转换，根据需要处理
-                #         pass
-                builder.store(rhs_val, lhs_ptr)
-                return rhs_val
+                if isinstance(lhs_ptr.type.pointee, ir.ArrayType):  
+                    # For simplicity, assume we're assigning an array to an array (not standard in C)  
+                    # Additional code would be needed to handle this case properly  
+                    #TODO 
+                    raise NotImplementedError("Assignment to array types is not implemented")  
+                else:  
+                    # Scalar assignment  
+                    if isinstance(rhs_val, int) or isinstance(rhs_val, float):  
+                        rhs_val = ir.Constant(lhs_ptr.type.pointee, rhs_val)  
+                    if isinstance(rhs_val.type, ir.IntType) and isinstance(lhs_ptr.type.pointee, ir.IntType):  
+                        if rhs_val.type.width != lhs_ptr.type.pointee.width:  
+                            rhs_val = builder.sext(rhs_val, lhs_ptr.type.pointee) if rhs_val.type.width < lhs_ptr.type.pointee.width else builder.trunc(rhs_val, lhs_ptr.type.pointee)  
+                    builder.store(rhs_val, lhs_ptr)  
+                    return rhs_val 
             else:
                 # compound assignment
                 old_val = builder.load(lhs_ptr)
@@ -496,11 +627,10 @@ class Visitor(CVisitor):
                 builder.store(new_val, lhs_ptr)
                 return new_val
         else:
-            print("Conditional expression:", ctx.getText())
-            print("Conditional expression:", ctx)
             return self.visitConditionalExpression(ctx.conditionalExpression())
             # return self.castToBoolForExpr(self.visitConditionalExpression(ctx.conditionalExpression()))
 
+    # 处理条件表达式
     def visitConditionalExpression(self, ctx: CParser.ConditionalExpressionContext):
         """
         conditionalExpression
@@ -539,6 +669,8 @@ class Visitor(CVisitor):
         else:
             return self.castToBoolForExpr(self.visitLogicalOrExpression(ctx.logicalOrExpression()))
     
+    
+    # 处理逻辑OR表达式
     def visitLogicalOrExpression(self, ctx: CParser.LogicalOrExpressionContext):
         """
         logicalOrExpression
@@ -554,6 +686,7 @@ class Visitor(CVisitor):
             val = builder.or_(l, r)
         return val
 
+    # 处理逻辑AND表达式
     def visitLogicalAndExpression(self, ctx: CParser.LogicalAndExpressionContext):
         """
         logicalAndExpression
@@ -569,6 +702,8 @@ class Visitor(CVisitor):
             bool_val = builder.and_(l, r)
             val = builder.zext(bool_val, int32)
         return val
+    
+    # 处理相等==表达式
     def visitEqualityExpression(self, ctx: CParser.EqualityExpressionContext):
         builder = self.Builders[-1]
 
@@ -597,6 +732,7 @@ class Visitor(CVisitor):
 
         return val
 
+    # 处理关系表达式,大于小于等
     def visitRelationalExpression(self, ctx: CParser.RelationalExpressionContext):
         builder = self.Builders[-1]
 
@@ -622,6 +758,8 @@ class Visitor(CVisitor):
             val = builder.zext(val, int32)
 
         return val
+    
+    # 确保表达式是i32类型
     def ensure_value(self, val):
         # 修改1：如果val是指针类型，则load出其值
         if isinstance(val.type, ir.PointerType):
@@ -629,6 +767,7 @@ class Visitor(CVisitor):
             val = builder.load(val)
         return val
     
+    # 处理加减法表达式
     def visitAdditiveExpression(self, ctx: CParser.AdditiveExpressionContext):
         exps = ctx.multiplicativeExpression()
         builder = self.Builders[-1]
@@ -651,6 +790,7 @@ class Visitor(CVisitor):
                 val = builder.sub(val, rhs)
         return val
 
+    # 处理乘除法和取模表达式
     def visitMultiplicativeExpression(self, ctx: CParser.MultiplicativeExpressionContext):
         unaries = ctx.unaryExpression()
         builder = self.Builders[-1]
@@ -673,6 +813,7 @@ class Visitor(CVisitor):
 
         return val
     
+    # 处理一元表达式其中包括一元运算符和后缀表达式
     def visitUnaryExpression(self, ctx: CParser.UnaryExpressionContext):
         """
         unaryExpression
@@ -692,6 +833,7 @@ class Visitor(CVisitor):
             elif op == '&':
                 # 返回变量的地址，不需要转换
                 return self.getPointer(val)
+            # TODO: 检查指针的解引用
             elif op == '*':
                 # 解引用指针
                 if isinstance(val.type, ir.PointerType):
@@ -720,6 +862,7 @@ class Visitor(CVisitor):
             else:
                 return self.visitPostfixExpression(ctx.postfixExpression())
 
+    # 处理后缀表达式 TODO: 尝试把函数调用的处理单独提取出来，后缀表达式只处理数组访问和后缀++/--
     def visitPostfixExpression(self, ctx: CParser.PostfixExpressionContext):
         """
         postfixExpression
@@ -730,28 +873,35 @@ class Visitor(CVisitor):
 
         # 处理函数调用、数组访问、postfix ++/--等
         # 简化只演示函数调用
-        # TODO: 完善传入参数是字符串的情况
         i = 1
         while i < len(ctx.children):
             token = ctx.children[i].getText()
-            if token == '(':
+            if token == '[':  
+                # Array indexing  
+                index_expr_ctx = ctx.children[i+1]  
+                index_val = self.visitExpression(index_expr_ctx)  
+                index_val = self.ensure_value(index_val)  
+                i += 2  # Skip over expression and ']'  
+    
+                # Compute the pointer to the array element  
+                ptr = val  # val should be a pointer to the array  
+                zero = ir.Constant(int32, 0)  
+                idxs = [zero, index_val]  
+    
+                element_ptr = builder.gep(ptr, idxs, inbounds=True)  
+                val = element_ptr  # Update val to be the pointer to the element  
+            elif token == '(':
                 # 函数调用
                 # val应为函数
-                print(f"Function call: {val.name}")
                 args = []
                 # argumentExpressionList?
                 if isinstance(ctx.children[i+1], CParser.ArgumentExpressionListContext):
                     for a in ctx.children[i+1].assignmentExpression():
-                        print(a.getText())
-                        
                         args.append(self.visitAssignmentExpression(a))
-                        print(f"Argument: {args[-1]}")
                     i += 2 # 跳过argumentExpressionList和')'
                 else:
                     i += 1 # 仅')'
-                print(args)
                 val = builder.call(val, args)
-                
             elif token == '++':
                 # 后置自增
                 ptr = val
@@ -772,6 +922,7 @@ class Visitor(CVisitor):
             i += 1
         return val
     
+    # 处理主表达式，包括函数调用、变量、常量、字符串等
     def visitPrimaryExpression(self, ctx: CParser.PrimaryExpressionContext):
         """
         primaryExpression
@@ -818,6 +969,7 @@ class Visitor(CVisitor):
             raise ValueError("Unknown primary expression")
         return None
     
+    # 处理常量TODO: 需要修改支持更多情况，目前只有整数和浮点数常量被处理
     def visitConstant(self, ctx):
         """处理常量值"""
         val = ctx.getText()
@@ -829,6 +981,8 @@ class Visitor(CVisitor):
                 return ir.Constant(double, float(val))
             except ValueError:
                 raise SemanticError(f"Invalid constant: {val}")
+            
+    # 处理字符常量
     def visitCharacterConstant(self, ctx):
         char_text = ctx.getText()[1:-1]  # 去掉引号
         if len(char_text) == 1 and char_text not in '\\':
@@ -851,6 +1005,8 @@ class Visitor(CVisitor):
                 raise ValueError(f"Unknown escape sequence: {char_text}")
         else:
             raise ValueError(f"Invalid character constant: {char_text}")
+        
+    # 处理字符串常量
     def visitStringLiteral(self, ctx):
         string_text = ctx.getText()[1:-1]  
         string_value = bytes(string_text, "utf-8").decode("unicode_escape")  
@@ -870,11 +1026,13 @@ class Visitor(CVisitor):
         str_global.global_constant = True  
         str_global.initializer = str_const  
         str_global.align = 1  
-    
-        zero = ir.Constant(ir.IntType(32), 0) 
+        
+        zero = ir.Constant(int32, 0) 
         builder = self.Builders[-1]   
         string_ptr = builder.gep(str_global, [zero, zero], inbounds=True)  
         return string_ptr  
+    
+    # 处理多个赋值表达式？TODO: 检查是否需要这个函数
     def visitExpression(self, ctx: CParser.ExpressionContext):
         """
         expression
@@ -883,6 +1041,7 @@ class Visitor(CVisitor):
         vals = [self.visitAssignmentExpression(a) for a in ctx.assignmentExpression()]
         return self.castToBoolForExpr(vals[-1]) if vals else None
 
+    # 处理跳转语句
     def visitStatement(self, ctx: CParser.StatementContext):
         # 选择、循环、跳转、表达式语句等的处理
         # 根据子节点类型判断
@@ -902,6 +1061,7 @@ class Visitor(CVisitor):
             return self.visitIterationStatement(child)
         # 其他语句类型的处理...
 
+    # 处理表达式语句？ TODO: 检查是否需要这个函数
     def visitExpressionStatement(self, ctx: CParser.ExpressionStatementContext):
         """
         expressionStatement
@@ -910,93 +1070,8 @@ class Visitor(CVisitor):
         if ctx.expression():
             self.visitExpression(ctx.expression())
         return
-
-    # def visitSelectionStatement(self, ctx: CParser.SelectionStatementContext):
-    #     """
-    #     selectionStatement
-    #         : IF LEFT_PAREN expression RIGHT_PAREN statement (ELSE statement)?
-    #     """
-    #     builder = self.Builders[-1]
-    #     cond_val = self.visitExpression(ctx.expression())
-    #     cond_val = self.castToBoolForCondition(cond_val)
-
-    #     then_bb = builder.function.append_basic_block('if_then')
-    #     else_bb = builder.function.append_basic_block('if_else')
-    #     merge_bb = builder.function.append_basic_block('if_merge')
-
-    #     has_else = ctx.ELSE() is not None
-    #     builder.cbranch(cond_val, then_bb, else_bb if has_else else merge_bb)
-
-    #     # then
-    #     builder.position_at_end(then_bb)
-    #     self.visitStatement(ctx.statement(0))
-    #     # 如果then块没有终止（比如return），则添加跳转到merge块
-    #     if not builder.block.is_terminated:
-    #         builder.branch(merge_bb)
-
-    #     # else
-    #     if has_else:
-    #         builder.position_at_end(else_bb)
-    #         self.visitStatement(ctx.statement(1))
-    #         # 如果else块没有终止，则添加跳转到merge块
-    #         if not builder.block.is_terminated:
-    #             builder.branch(merge_bb)
-    #     else:
-    #         # 如果没有else分支，将else块连接到merge块
-    #         builder.position_at_end(else_bb)
-    #         builder.branch(merge_bb)
-
-    #     # 只有当merge块可能被使用时才定位到它
-    #     if not builder.block.is_terminated:
-    #         builder.position_at_end(merge_bb)
-    #     return
-    # def visitSelectionStatement(self, ctx: CParser.SelectionStatementContext):
-    #     """
-    #     selectionStatement
-    #         : IF LEFT_PAREN expression RIGHT_PAREN statement (ELSE statement)?
-    #     """
-    #     print("visitSelectionStatement")
-    #     builder = self.Builders[-1]
-    #     cond_val = self.visitExpression(ctx.expression())
-    #     cond_val = self.castToBoolForCondition(cond_val)  # 使用i1类型
-
-    #     # 创建基本块
-    #     then_bb = builder.function.append_basic_block('if_then')
-    #     else_bb = builder.function.append_basic_block('if_else')
-        
-    #     # 条件分支
-    #     builder.cbranch(cond_val, then_bb, else_bb)
-
-    #     # 处理then块
-    #     builder.position_at_end(then_bb)
-    #     self.visitStatement(ctx.statement(0))
-    #     then_has_terminator = builder.block.is_terminated
-
-    #     # 处理else块
-    #     builder.position_at_end(else_bb)
-    #     self.visitStatement(ctx.statement(1) if ctx.ELSE() else None)
-    #     else_has_terminator = builder.block.is_terminated
-
-    #     # 如果两个分支都有终止指令（比如return），就不需要merge块
-    #     if not (then_has_terminator and else_has_terminator):
-    #         # 创建merge块
-    #         merge_bb = builder.function.append_basic_block('if_merge')
-            
-    #         # 如果then块没有终止指令，添加跳转到merge块
-    #         if not then_has_terminator:
-    #             builder.position_at_end(then_bb)
-    #             builder.branch(merge_bb)
-                
-    #         # 如果else块没有终止指令，添加跳转到merge块
-    #         if not else_has_terminator:
-    #             builder.position_at_end(else_bb)
-    #             builder.branch(merge_bb)
-                
-    #         # 继续在merge块中生成代码
-    #         builder.position_at_end(merge_bb)
-
-    #     return   
     
+    # 处理选择语句
     def visitSelectionStatement(self, ctx: CParser.SelectionStatementContext):
         builder = self.Builders[-1]
         cond_val = self.visitExpression(ctx.expression())
@@ -1065,7 +1140,10 @@ class Visitor(CVisitor):
             builder.position_at_end(end_bb)
 
         return
-    # 辅助函数
+    
+    
+    # 辅助函数，从声明符中获取类型和名称，目前只处理了简单的情况
+    # TODO: 需要修改支持更多情况
     def getTypeFromDeclarationSpecifiers(self, ctx):
         # 简化，只根据出现的类型关键字进行判断
         if ctx is None:
@@ -1073,71 +1151,68 @@ class Visitor(CVisitor):
         specifiers = ctx.declarationSpecifier()
         types = [s.getText() for s in specifiers if s.typeSpecifier()]
         if 'void' in types:
-            print("Found void type")
             return void
         elif 'int' in types:
-            print("Found int type")
             return int32
-        elif 'char' in types:
-            print("Found char type")
-            return int8
-        elif 'double' in types:
-            print("Found double type")
-            return double
-        
+        elif 'char' in types:  
+            return int8  
+        elif 'double' in types:  
+            return double  
         # 根据需求扩展char、double等类型
-        print("Unknown type, using int32")
-        return int32
+        else:  
+            raise NotImplementedError(f"Type specifier {' '.join(types)} not implemented.")  
 
+
+
+    # 从声明符中获取函数的信息，包括函数名、函数类型和参数列表
     def getFunctionInfoFromDeclarator(self, ctx, ret_type):
-        """从 declarator 中提取函数名与参数列表"""
+        """从declarator中提取函数名与参数列表"""
         print("\n=== Getting Function Info ===")
         print(f"Raw declarator text: {ctx.getText()}")
-
+        
         direct_decl = ctx.directDeclarator()
         if not direct_decl:
             print("No direct declarator found")
             return None, None, []
-
+        
         print(f"Direct declarator text: {direct_decl.getText()}")
-
-        # 获取函数名
+        
+        # 递归获取函数名
         func_name = self._get_function_name(direct_decl)
         if not func_name:
             print("Could not find function name")
             return None, None, []
-
+            
         print(f"Function name: {func_name}")
-
+        
         # 获取参数列表
         arg_names = []
         arg_types = []
-
-        # 查找参数列表
+        
+        # 遍历所有子节点寻找参数列表
         param_list_ctx = self._find_parameter_list(direct_decl)
         if param_list_ctx:
             print("Found parameter list, processing parameters...")
             for param_decl in param_list_ctx.parameterDeclaration():
-                # 获取参数的基本类型
-                param_base_type = self.getTypeFromDeclarationSpecifiers(param_decl.declarationSpecifiers())
-
-                # 获取参数的声明符
-                param_declarator = param_decl.declarator()
-                param_type = self.getTypeFromDeclarator(param_declarator, param_base_type)
-
+                # 获取参数类型
+                param_type = self.getTypeFromDeclarationSpecifiers(param_decl.declarationSpecifiers())
                 # 获取参数名
-                param_name = self._get_identifier_from_declarator(param_declarator)
-
+                param_name = self._get_identifier_from_declarator(param_decl.declarator())
+                
                 print(f"Found parameter: {param_name} of type {param_type}")
                 if param_name:
-                    arg_names.append(param_name)
+                    arg_names.append(param_name.strip('"'))
+                    # arg_names.append(param_name)
                     arg_types.append(param_type)
+        
         # 创建函数类型
         func_type = ir.FunctionType(ret_type, arg_types)
         print(f"Created function type: {func_type}")
         print(f"Parameter names: {arg_names}")
+        
         return func_name, func_type, arg_names
 
+    # 递归获取函数名，处理函数信息的子程序
     def _get_function_name(self, direct_decl):
         """递归获取函数名"""
         print("Looking for function name in:", direct_decl.getText())
@@ -1154,6 +1229,8 @@ class Visitor(CVisitor):
                     return name
         return None
 
+    
+    # 递归查找参数列表
     def _find_parameter_list(self, direct_decl):
         """在直接声明器中查找参数列表"""
         print("Looking for parameter list in:", direct_decl.getText())
@@ -1179,6 +1256,8 @@ class Visitor(CVisitor):
                     
         return None
 
+
+    # 从声明器中获取标识符
     def _get_identifier_from_declarator(self, declarator):
         """从声明器中获取标识符"""
         if not declarator:
@@ -1190,14 +1269,18 @@ class Visitor(CVisitor):
             
         return self._get_function_name(direct_decl)  # 复用函数名获取逻辑
 
-    def getIdentifierFromDeclarator(self, declarator):
-        # 简化：直接从 directDeclarator 获取 Identifier
-        d = declarator.directDeclarator()
+
+    # TODO: 这个函数被调用了吗？ 有什么作用？
+    def getIdentifierFromDeclarator(self, ctx):
+        # 简化：直接从directDeclarator获取Identifier
+        d = ctx.directDeclarator()
+        # return self.getIdentifierFromDirectDeclarator(d)
         name = self.getIdentifierFromDirectDeclarator(d)
         if name:
-            return name  # 移除 strip('"')，除非确实需要
+            return name.strip('"')  # Remove quotes here, at the source
         return None
 
+    # 从直接声明器中获取标识符？TODO: 这个函数被调用了吗？ 有什么作用？
     def getIdentifierFromDirectDeclarator(self, dctx):
         if dctx.Identifier():
             return dctx.Identifier().getText()
@@ -1207,16 +1290,7 @@ class Visitor(CVisitor):
                     return self.getIdentifierFromDirectDeclarator(c)
         return None
 
-
-    def getIdentifierFromDirectDeclarator(self, dctx):
-        if dctx.Identifier():
-            return dctx.Identifier().getText()
-        else:
-            for c in dctx.getChildren():
-                if isinstance(c, CParser.DirectDeclaratorContext):
-                    return self.getIdentifierFromDirectDeclarator(c)
-        return None
-
+    # 转换为bool类型
     def castToBool(self, val):
         # 将任意整数类型转为i1布尔
         builder = self.Builders[-1]
@@ -1225,6 +1299,7 @@ class Visitor(CVisitor):
         cmp = builder.zext(cmp, int32)
         return cmp
 
+    # 处理跳转语句
     def visitJumpStatement(self, ctx: CParser.JumpStatementContext):
         """
         jumpStatement
@@ -1270,6 +1345,9 @@ class Visitor(CVisitor):
             label_bb = self.Funs[label_name].append_basic_block(label_name)
             builder.branch(label_bb)
         return
+    
+    # 用于condition语句的bool转换
+    # TODO: 为什么不能直接使用castToBool？
     def castToBoolForCondition(self, val):
         """
         将任意整数类型转为i1布尔，用于条件判断。
@@ -1284,6 +1362,8 @@ class Visitor(CVisitor):
         # cmp = builder.icmp_signed('!=', val, zero)
         # return cmp  # 返回i1类型
 
+    # 用于表达式赋值的bool转换
+    # TODO: 为什么不能直接使用castToBool？
     def castToBoolForExpr(self, val):
         """
         将任意整数类型转为i32布尔，用于表达式赋值。
@@ -1296,6 +1376,9 @@ class Visitor(CVisitor):
         # cmp = builder.icmp_signed('!=', val, zero)
         # cmp = builder.zext(cmp, int32)  # 扩展为i32
         # return cmp
+    
+    # 返回变量地址？
+    # TODO: 为啥那么直接返回val?
     def getPointer(self, val):
         """
         返回变量的地址（指针）。
@@ -1303,138 +1386,7 @@ class Visitor(CVisitor):
         # 假设 val 是变量名，此时 visitPrimaryExpression 返回的是地址
         return val
     
-    # ——————————————————循环部分————————————————————
-    # def visitIterationStatement(self, ctx: CParser.IterationStatementContext):
-    #     """
-    #     iterationStatement
-    #         : WHILE LEFT_PAREN expression RIGHT_PAREN statement
-    #         | DO statement WHILE LEFT_PAREN expression RIGHT_PAREN SEMI
-    #         | FOR LEFT_PAREN forCondition RIGHT_PAREN statement
-    #     """
-    #     builder = self.Builders[-1]
-    #     func = builder.function
-
-    #     if ctx.WHILE():
-    #         # while(expr) stmt
-    #         cond_bb = func.append_basic_block('while_cond')
-    #         body_bb = func.append_basic_block('while_body')
-    #         end_bb = func.append_basic_block('while_end')
-
-    #         # 先跳转到cond块
-    #         builder.branch(cond_bb)
-    #         builder.position_at_end(cond_bb)
-
-    #         # 计算条件表达式
-    #         cond_val = self.visitExpression(ctx.expression())
-    #         cond_val_i1 = self.castToBoolForCondition(cond_val)
-    #         builder.cbranch(cond_val_i1, body_bb, end_bb)
-
-    #         # 压栈当前循环信息（break和continue跳转点）
-    #         self.loop_stack.append({'break': end_bb, 'continue': cond_bb})
-
-    #         # 处理循环体
-    #         builder.position_at_end(body_bb)
-    #         self.visitStatement(ctx.statement())
-
-    #         # 如果循环体没有终止指令，则跳转回条件判断
-    #         if not builder.block.is_terminated:
-    #             builder.branch(cond_bb)
-
-    #         # 出栈
-    #         self.loop_stack.pop()
-
-    #         builder.position_at_end(end_bb)
-
-    #     elif ctx.DO():
-    #         # do stmt while(expr);
-    #         body_bb = func.append_basic_block('do_body')
-    #         cond_bb = func.append_basic_block('do_cond')
-    #         end_bb = func.append_basic_block('do_end')
-
-    #         # 先跳转到body块
-    #         builder.branch(body_bb)
-    #         builder.position_at_end(body_bb)
-
-    #         # 压栈循环信息
-    #         self.loop_stack.append({'break': end_bb, 'continue': cond_bb})
-
-    #         # 执行循环体
-    #         self.visitStatement(ctx.statement())
-
-    #         # 如果body没有终止，跳到cond
-    #         if not builder.block.is_terminated:
-    #             builder.branch(cond_bb)
-
-    #         builder.position_at_end(cond_bb)
-
-    #         # 条件检查
-    #         cond_val = self.visitExpression(ctx.expression())
-    #         cond_val_i1 = self.castToBoolForCondition(cond_val)
-    #         builder.cbranch(cond_val_i1, body_bb, end_bb)
-
-    #         # 出栈
-    #         self.loop_stack.pop()
-
-    #         builder.position_at_end(end_bb)
-
-    #     elif ctx.FOR():
-    #         # Create basic blocks for the for loop
-    #         init_bb = func.append_basic_block('for_init')
-    #         cond_bb = func.append_basic_block('for_cond')
-    #         body_bb = func.append_basic_block('for_body')
-    #         inc_bb = func.append_basic_block('for_inc')
-    #         end_bb = func.append_basic_block('for_end')
-
-    #         # Branch to initialization
-    #         builder.branch(init_bb)
-    #         builder.position_at_end(init_bb)
-
-    #         # Handle for condition components
-    #         for_cond = ctx.forCondition()
-            
-    #         # Initialize
-    #         if isinstance(for_cond.getChild(0), CParser.ForDeclarationContext):
-    #             # Handle declaration-style initialization
-    #             self.visitForDeclaration(for_cond.forDeclaration())
-    #         elif for_cond.expression(0):
-    #             # Handle expression-style initialization
-    #             self.visitExpression(for_cond.expression(0))
-
-    #         # Branch to condition check
-    #         builder.branch(cond_bb)
-    #         builder.position_at_end(cond_bb)
-
-    #         # Condition check
-    #         if for_cond.expression(1):  # Second expression is the condition
-    #             cond_val = self.visitExpression(for_cond.expression(1))
-    #             cond_val = self.castToBoolForCondition(cond_val)
-    #             builder.cbranch(cond_val, body_bb, end_bb)
-    #         else:
-    #             # If no condition is provided, it's treated as always true
-    #             builder.branch(body_bb)
-
-    #         # Push loop information for break/continue
-    #         self.loop_stack.append({'break': end_bb, 'continue': inc_bb})
-
-    #         # Loop body
-    #         builder.position_at_end(body_bb)
-    #         self.visitStatement(ctx.statement())
-    #         if not builder.block.is_terminated:
-    #             builder.branch(inc_bb)
-
-    #         # Increment/update
-    #         builder.position_at_end(inc_bb)
-    #         if for_cond.expression(2):  # Third expression is the increment
-    #             self.visitExpression(for_cond.expression(2))
-    #         builder.branch(cond_bb)
-
-    #         # Pop loop information
-    #         self.loop_stack.pop()
-
-    #         # Position at end block
-    #         builder.position_at_end(end_bb)
-
-    #     return
+    # 处理迭代的语句 比如while, do-while, for
     def visitIterationStatement(self, ctx: CParser.IterationStatementContext):
         """
         iterationStatement
@@ -1597,6 +1549,8 @@ class Visitor(CVisitor):
 
             return
 
+
+    # 处理for循环的声明部分
     def visitForDeclaration(self, ctx: CParser.ForDeclarationContext):
         """处理for循环的声明部分"""
         if not ctx:
@@ -1619,26 +1573,3 @@ class Visitor(CVisitor):
                                 init_val = builder.sext(init_val, var_alloca.type.pointee) if init_val.type.width < var_alloca.type.pointee.width else builder.trunc(init_val, var_alloca.type.pointee)
                         builder.store(init_val, var_alloca)
         return
-    # 增加对于指针的解析
-    def getTypeFromDeclarator(self, declarator_ctx, base_type):
-        """
-        解析 declarator 以确定指针层级，并返回最终的 LLVM 类型。
-        """
-        type_ = base_type
-        current = declarator_ctx
-
-        while current:
-            pointer_ctx = current.pointer()
-            if pointer_ctx:
-                # 统计 '*' 的数量
-                # 在标准语法中，每个 '*' 对应一个 PointerContext
-                type_ = ir.PointerType(type_)
-                # 继续遍历下一个指针（如果有）
-                if hasattr(pointer_ctx, 'pointer') and callable(getattr(pointer_ctx, 'pointer')):
-                    current = pointer_ctx.pointer()
-                else:
-                    break
-            else:
-                break
-
-        return type_

@@ -11,56 +11,89 @@ int main()
     int next[100];        // next 数组
     int result[100];      // 存储匹配的起始位置
     int result_count = 0; // 记录匹配的位置数量
-    int i, j;             // 循环变量
+    int i;                // 外层循环变量
+    int j;                // 内层循环变量
 
-    // 构造模板串的 next 数组
-    next[0] = 0; // next 数组第一个位置为 0
-    for (i = 1, j = 0; i < t_len; i++)
+    // 构造next数组
+    next[0] = 0;
+    i = 1;
+    j = 0;
+
+    // 逐个计算next值
+    while (i < t_len)
     {
-        while (j > 0 && t[i] != t[j])
-        {
-            j = next[j - 1];
-        }
+        // 字符匹配的情况
         if (t[i] == t[j])
         {
-            j++;
+            next[i] = j + 1;
+            i = i + 1;
+            j = j + 1;
+            continue;
         }
-        next[i] = j;
+
+        // j已经退到开头
+        if (j == 0)
+        {
+            next[i] = 0;
+            i = i + 1;
+            continue;
+        }
+
+        // 字符不匹配且j>0，回退j
+        j = next[j - 1];
     }
 
-    // 在主串中匹配模板串
-    for (i = 0, j = 0; i < s_len; i++)
+    // 在主串中匹配
+    i = 0;
+    j = 0;
+
+    while (i < s_len)
     {
-        while (j > 0 && s[i] != t[j])
-        {
-            j = next[j - 1];
-        }
+        // 字符匹配的情况
         if (s[i] == t[j])
         {
-            j++;
+            i = i + 1;
+            j = j + 1;
+
+            // 找到一个完整匹配
+            if (j == t_len)
+            {
+                result[result_count] = i - t_len;
+                result_count = result_count + 1;
+                j = next[j - 1];
+            }
+            continue;
         }
-        if (j == t_len)
-        { // 完全匹配
-            result[result_count++] = i - t_len + 1;
-            j = next[j - 1];
+
+        // j已经退到开头
+        if (j == 0)
+        {
+            i = i + 1;
+            continue;
         }
+
+        // 字符不匹配且j>0，回退j
+        j = next[j - 1];
     }
 
-    // 输出结果
+    // 无匹配结果
     if (result_count == 0)
     {
         printf("False\n");
+        return 0;
     }
-    else
+
+    // 输出第一个匹配位置
+    printf("%d", result[0]);
+
+    // 输出其余匹配位置
+    i = 1;
+    while (i < result_count)
     {
-        for (i = 0; i < result_count; i++)
-        {
-            if (i > 0)
-                printf(",");
-            printf("%d", result[i]);
-        }
-        printf("\n");
+        printf(",%d", result[i]);
+        i = i + 1;
     }
+    printf("\n");
 
     return 0;
 }
