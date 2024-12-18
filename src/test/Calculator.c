@@ -1,64 +1,148 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 
-typedef struct { double data[1000]; int top; } ValStack;
-typedef struct { char data[1000]; int top; } OpStack;
+int main()
+{
+    // 输入的表达式
+    char expr[100] = {'3', '+', '(', '2', '*', '2', ')', '-', '1', '/', '1', '#'}; // 直接在代码中赋值，可修改此处以更换表达式
 
-void pushVal(ValStack *s, double val) { s->data[++s->top] = val; }
-double popVal(ValStack *s) { return s->data[s->top--]; }
-int isEmptyVal(ValStack *s) { return s->top == -1; }
+    // 操作符栈和操作数栈
+    char op_stack[100];
+    int num_stack[100];
 
-void pushOp(OpStack *s, char op) { s->data[++s->top] = op; }
-char popOp(OpStack *s) { return s->data[s->top--]; }
-char peekOp(OpStack *s) { return s->data[s->top]; }
-int isEmptyOp(OpStack *s) { return s->top == -1; }
+    // 栈顶指针初始化
+    int op_top = -1;
+    int num_top = -1;
 
-int precedence(char op) {
-    return op == '+' || op == '-' ? 1 : (op == '*' || op == '/') ? 2 : 0;
-}
+    // 优先级定义
+    char precedence[128] = {0}; // 存储运算符优先级
+    precedence['+'] = 1;
+    precedence['-'] = 1;
+    precedence['*'] = 2;
+    precedence['/'] = 2;
+    precedence['('] = 0; // '(' 优先级最低
 
-double applyOp(double a, double b, char op) {
-    if (op == '+') return a + b; if (op == '-') return a - b;
-    if (op == '*') return a * b; if (op == '/') return a / b;
-    return 0;
-}
+    // 当前解析位置
+    int i = 0;
+    while (expr[i] != '#')
+    { // 使用 '#' 作为结束标志
+        // 获取当前字符
+        char c;
+        c = expr[i];
 
-double evaluate(char *exp) {
-    ValStack vals; OpStack ops; vals.top = ops.top = -1;
-    int i = 0, len = strlen(exp);
-    while (i < len) {
-        if (isspace(exp[i])) { i++; continue; }
-        if (exp[i] == '(') { pushOp(&ops, exp[i++]); }
-        else if (isdigit(exp[i]) || (exp[i] == '-' && (i == 0 || exp[i - 1] == '('))) {
-            int sign = 1;
-            if (exp[i] == '-') { sign = -1; i++; }
-            double val = 0;
-            while (i < len && isdigit(exp[i])) val = val * 10 + (exp[i++] - '0');
-            pushVal(&vals, val * sign);
-        } else if (exp[i] == ')') {
-            while (!isEmptyOp(&ops) && peekOp(&ops) != '(')
-                pushVal(&vals, applyOp(popVal(&vals), popVal(&vals), popOp(&ops)));
-            popOp(&ops); i++;
-        } else {
-            while (!isEmptyOp(&ops) && precedence(peekOp(&ops)) >= precedence(exp[i]))
-                pushVal(&vals, applyOp(popVal(&vals), popVal(&vals), popOp(&ops)));
-            pushOp(&ops, exp[i++]);
+        // 处理数字
+        if (c >= '0' && c <= '9')
+        {
+            int num = 0;
+            while (expr[i] >= '0' && expr[i] <= '9')
+            {
+                num = num * 10 + (expr[i] - '0');
+                i++;
+            }
+            num_top = num_top + 1;
+            num_stack[num_top] = num; // 将数字压入操作数栈
+            continue;
         }
+
+        // 处理左括号
+        else if (c == '(')
+        {
+            op_top = op_top + 1;
+            op_stack[op_top] = c;
+        }
+
+        // 处理右括号
+        else if (c == ')')
+        {
+            int m = 0;
+            while (op_top >= 0 && op_stack[op_top] != '(')
+            {
+                // 弹出并计算
+                char op;
+                op = op_stack[op_top];
+                op_top = op_top - 1;
+                int b = num_stack[num_top--];
+                int a = num_stack[num_top--];
+                int res;
+                if (op == '+')
+                {
+                    res = a + b;
+                }
+                else if (op == '-')
+                {
+                    res = a - b;
+                }
+                else if (op == '*')
+                {
+                    res = a * b;
+                }
+                else if (op == '/')
+                {
+                    res = a / b;
+                }
+                num_top = num_top + 1;
+                num_stack[num_top] = res;
+            }
+            op_top--; // 弹出左括号
+        }
+
+        // 处理操作符
+        else if (c == '+' || c == '-' || c == '*' || c == '/')
+        {
+            int m = 0;
+            while (op_top >= 0 && precedence[op_stack[op_top]] >= precedence[c])
+            {
+                // 弹出并计算
+                char op;
+                op = op_stack[op_top];
+
+                int b = num_stack[num_top];
+                num_top = num_top - 1;
+                int a = num_stack[num_top];
+                num_top = num_top - 1;
+
+                int res;
+                if (op == '+')
+                {
+                    res = a + b;
+                }
+                if (op == '-')
+                {
+                    res = a - b;
+                }
+                if (op == '*')
+                {
+                    res = a * b;
+                }
+                if (op == '/')
+                {
+                    res = a / b;
+                }
+                num_top = num_top + 1;
+                num_stack[num_top] = res;
+            }
+            op_top = op_top + 1;
+            op_stack[op_top] = c;
+        }
+
+        i++;
     }
-    while (!isEmptyOp(&ops))
-        pushVal(&vals, applyOp(popVal(&vals), popVal(&vals), popOp(&ops)));
-    return popVal(&vals);
-}
 
-void calculateExpression(char *s) {
-    double result = evaluate(s);
-    printf("%.2f\n", result);
-}
+    // 处理剩余操作符
+    while (op_top >= 0)
+    {
+        char op;
+        op = op_stack[op_top--];
+        int b = num_stack[num_top--];
+        int a = num_stack[num_top--];
+        int res = (op == '+') ? (a + b) : (op == '-') ? (a - b)
+                                      : (op == '*')   ? (a * b)
+                                                      : (a / b);
+        num_top = num_top + 1;
+        num_stack[num_top] = res;
+    }
 
-int main() {
-    calculateExpression("1+(-5-22)*4/(2+1)"); // 输出: -35
-    calculateExpression("3+4*2/(1-5)");       // 输出: 1
+    // 最终结果
+    printf("Result: %d\n", num_stack[num_top]);
+
     return 0;
 }

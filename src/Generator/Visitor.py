@@ -17,7 +17,13 @@ class Visitor(CVisitor):
     def __init__(self):
         super().__init__()
         self.Module = ir.Module(name="my_module")
+<<<<<<< Updated upstream
         self.Module.triple = "aarch64-apple-macosx14.0.0" 
+=======
+        # 默认的三元组为aarch64-apple-macosx14.0.0
+        # 可以根据需要修改为其他三元组比如x86_64-pc-linux-gnu
+        self.Module.triple = "x86_64-pc-linux-gnu" 
+>>>>>>> Stashed changes
         self.Module.data_layout = "e-m:o-i64:64-i128:128-n32:64-S128"
         self.Blocks = []
         self.Builders = []
