@@ -1,11 +1,11 @@
 from Parser.generated.CParser import CParser
 from Parser.generated.CVisitor import CVisitor
-from llvmlite import ir,binding
+from llvmlite import ir, binding
 from Generator.SymbolTable import SymbolTable
 from Generator.SemanticError import SemanticError
-from antlr4.tree.Tree import TerminalNodeImpl  
+from antlr4.tree.Tree import TerminalNodeImpl
 
-# 定义一些LLVM类型作为示例，可根据需求扩展
+# 定义LLVM基本类型
 int64 = ir.IntType(64)
 int32 = ir.IntType(32)
 int8 = ir.IntType(8)
