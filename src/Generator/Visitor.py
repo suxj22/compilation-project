@@ -432,7 +432,7 @@ class Visitor(CVisitor):
                         raise NotImplementedError("Array size must be integer constant")  
                     ctype = ir.ArrayType(inner_type, size)  
                 else:  
-                    ctype = ir.SequenceType(inner_type, 0) 
+                    ctype = {'array_unsized': True, 'inner_type': inner_type}  
                 return name, ctype  
             elif len(children) >= 4 and children[0].getText() == '(' and children[-1].getText() == ')' :
                 # ( declarator )  
@@ -560,10 +560,7 @@ class Visitor(CVisitor):
         """
         if ctx.assignmentExpression():
             val = self.visitAssignmentExpression(ctx.assignmentExpression())  
-            if isinstance(val, ir.Constant):  
-                return val.constant  
-            else:  
-                return val 
+            return val
         elif ctx.LEFT_BRACE():  
             # Handle array initializer  
             if ctx.initializerList():  
@@ -574,10 +571,10 @@ class Visitor(CVisitor):
                         if isinstance(val, list):  
                             values.append(val)  
                         else:  
-                            # Convert constants to Python primitive types  
+                            # 如果 val 是 ir.Constant，则获取其实际值  
                             if isinstance(val, ir.Constant):  
                                 val = val.constant  
-                            values.append(val)  
+                            values.append(val)
                 return values
         else:
             return []
@@ -1029,8 +1026,8 @@ class Visitor(CVisitor):
         str_global.global_constant = True  
         str_global.initializer = str_const  
         str_global.align = 1  
-    
-        zero = ir.Constant(ir.IntType(32), 0) 
+        
+        zero = ir.Constant(int32, 0) 
         builder = self.Builders[-1]   
         string_ptr = builder.gep(str_global, [zero, zero], inbounds=True)  
         return string_ptr  
@@ -1157,8 +1154,13 @@ class Visitor(CVisitor):
             return void
         elif 'int' in types:
             return int32
+        elif 'char' in types:  
+            return int8  
+        elif 'double' in types:  
+            return double  
         # 根据需求扩展char、double等类型
-        return int32
+        else:  
+            raise NotImplementedError(f"Type specifier {' '.join(types)} not implemented.")  
 
 
 
