@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void isPalindrome(char *s)
+void isPalindrome(char s[])
 {
     int left = 0;
     int right = strlen(s) - 1;
@@ -20,7 +20,9 @@ void isPalindrome(char *s)
 
 int main()
 {
-    isPalindrome("abbcdcbba");
-    isPalindrome("abc");
+    char str1[] = "abbcdcbba";
+    char str2[] = "abc";
+    isPalindrome(str1);
+    isPalindrome(str2);
     return 0;
 }
