@@ -2,9 +2,13 @@
 
 int main()
 {
-    int nums[8] = {5, 8, 4, 9, 7, 3, 1, 10}; // 输入数组
-    int n = 8;                               // 数组长度
-    int sorted = 0;                          // 标志位判断是否已经排序
+    int nums[1000] = {5, 8, 4, 9, 7, 3, 1, 10, 0}; // 输入数组
+    int n = 0;                                     // 数组长度
+    while (nums[n] != 0)
+    {
+        n = n + 1;
+    }
+    int sorted = 0; // 标志位判断是否已经排序
 
     // 使用插入排序
     for (int i = 1; i < n; i++)
@@ -25,10 +29,11 @@ int main()
         nums[j + 1] = temp;
     }
 
+    printf("The sorted array is: ");
     // 输出排序后的数组
     for (int i = 0; i < n; i += 1)
     {
-        printf("%d", nums[i]);
+        printf("%d ", nums[i]);
     }
 
     return 0;

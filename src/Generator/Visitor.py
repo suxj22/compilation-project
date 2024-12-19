@@ -211,12 +211,13 @@ class Visitor(CVisitor):
         string_ptr = builder.gep(str_global, [zero, zero], inbounds=True)  
         return string_ptr 
     
-    # 访问scanf函数
     def visitScanfFunction(self, ctx: CParser.ScanfFunctionContext):
         """
-        scanf
-            : 'scanf' LEFT_PAREN (StringLiteral | Identifier) (COMMA addressOfVariable)* RIGHT_PAREN
+        处理scanf函数调用,支持%s格式读取到char数组
+        scanf("format string", &variable)
         """
+        print("visitScanfFunction", ctx.getText())
+        # 获取或创建scanf函数
         scanf = None
         if 'scanf' in self.Funs:
             scanf = self.Funs['scanf']
@@ -226,40 +227,37 @@ class Visitor(CVisitor):
             self.Funs['scanf'] = scanf
         
         builder = self.Builders[-1]
-        print("visitScanfFunction", ctx.getText())
-        args = []  
-    
-        if ctx.StringLiteral():  
-            string_node = ctx.StringLiteral()  
-            string_text = string_node.getText()  
-            content = string_text[1:-1]  
-            content_unescaped = bytes(content, "utf-8").decode("unicode_escape")  
-            format_str_ptr = self.create_string_constant(content_unescaped)  
-            args.append(format_str_ptr)  
-        elif ctx.Identifier():  
-            name = ctx.Identifier().getText()  
-            identifier = self.SymbolTable.get_item(name)  
-            if identifier is None:  
-                raise SemanticError(f"Undefined identifier: {name}")  
-            if isinstance(identifier.type, ir.PointerType) and identifier.type.pointee == ir.IntType(8):  
-                ptr = identifier  
-            else:  
-                ptr = builder.bitcast(identifier, ir.PointerType(ir.IntType(8)))  
-            args.append(ptr)  
-        else:  
-            raise Exception("Expected StringLiteral or Identifier in scanf")  
-    
-        # addressOfVariable   
-        address_list = ctx.addressOfVariable()  
-        for address_ctx in address_list:  
-            var_name = address_ctx.Identifier().getText()  
-            variable = self.SymbolTable.get_item(var_name)  
-            if variable is None:  
-                raise SemanticError(f"Undefined variable: {var_name}")  
-            args.append(variable)  
-    
-        ret_value = builder.call(scanf, args)  
-        return ret_value  
+        args = []
+
+        # 处理格式字符串
+        if ctx.StringLiteral():
+            string_node = ctx.StringLiteral()
+            format_str = string_node.getText()[1:-1]  # 移除引号
+            format_str_ptr = self.create_string_constant(format_str)
+            args.append(format_str_ptr)
+        
+        # 处理变量参数
+        
+        for arg_ctx in ctx.scanfArgument():
+            var_name = arg_ctx.Identifier().getText() if arg_ctx.Identifier() else arg_ctx.postfixExpression().getText()
+            variable = self.SymbolTable.get_item(var_name)
+            
+            if variable is None:
+                raise SemanticError(f"未定义的变量: {var_name}")
+                
+            # 根据是否有&符号决定处理方式    
+            has_and = arg_ctx.AND() is not None
+            
+            if isinstance(variable.type, ir.ArrayType):
+                # 数组类型处理
+                zero = ir.Constant(int32, 0)
+                ptr = builder.gep(variable, [zero, zero], inbounds=True)
+                args.append(ptr)
+            else:
+                # 普通变量处理
+                args.append(variable)
+        # 调用scanf
+        return builder.call(scanf, args)
     
     # 访问gets函数
     def visitGetsFunction(self, ctx: CParser.GetsFunctionContext):

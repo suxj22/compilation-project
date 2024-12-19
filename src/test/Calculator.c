@@ -4,7 +4,9 @@ int main()
 {
     // 输入的表达式
     char expr[100] = {'1', '+', '(', '-', '5', '-', '2', '2', ')', '*', '4', '/', '(', '1', '+', '2', ')', '#'};
-
+    // 使用scanf来输入到expr数组中,不用%s
+    printf("Please type in the expression and finish typing with #: ");
+    scanf("%s", expr);
     // 操作符栈和操作数栈
     char op_stack[100];
     int num_stack[100];
@@ -194,7 +196,7 @@ int main()
         num_top = num_top + 1;
         num_stack[num_top] = res;
     }
-
+    printf("The calculation result is : ");
     printf("%d\n", num_stack[num_top]);
     return 0;
 }

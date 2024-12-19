@@ -194,9 +194,13 @@ strlenFunction: 'strlen' LEFT_PAREN Identifier RIGHT_PAREN;
 //atoi
 atoiFunction: 'atoi' LEFT_PAREN Identifier RIGHT_PAREN;
 
-// scanf
+// 修改 scanfFunction
 scanfFunction:
-	'scanf' LEFT_PAREN StringLiteral (COMMA addressOfVariable)* RIGHT_PAREN;
+	'scanf' LEFT_PAREN StringLiteral COMMA scanfArgument (
+		COMMA scanfArgument
+	)* RIGHT_PAREN;
+// 添加 scanfArgument 规则
+scanfArgument: (AND)? (Identifier | postfixExpression); // 支持 &var 或直接 var
 
 addressOfVariable: AND (Identifier | postfixExpression);
 
@@ -284,7 +288,9 @@ CharacterConstant: '\'' ( ~['\\\r\n] | EscapeSequence) '\'';
 
 StringLiteral: '"' (~["\\\r\n] | EscapeSequence)* '"';
 
-fragment EscapeSequence: '\\' [btnfr"'\\];
+fragment EscapeSequence:
+	'\\' [btnfr"'\\] // 原有的转义字符
+	| '%' [sd]; // 添加 %s %d 格式说明符
 
 Whitespace: [ \t\r\n]+ -> skip;
 

@@ -3,16 +3,31 @@
 int main()
 {
     // 定义输入的字符串及其长度
-    char s[12] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'd', 'e', 'f'};
-    int s_len = 12; // 主串的长度
-    char t[2] = {'a', 'b'};
-    int t_len = 2; // 模板串的长度
+    char s[100] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'd', 'e', 'f'};
+    printf("Please type in the main string and finish typing with #: ");
+    scanf("%s", s);
 
+    char t[100] = {'a', 'b'};
+    printf("Please type in the pattern string and finish typing with #: ");
+    scanf("%s", t);
     int next[100];        // next 数组
     int result[100];      // 存储匹配的起始位置
     int result_count = 0; // 记录匹配的位置数量
     int i;                // 外层循环变量
     int j;                // 内层循环变量
+
+    // 计算字符串长度
+    int s_len = 0;
+    while (s[s_len] != '#')
+    {
+        s_len = s_len + 1;
+    }
+
+    int t_len = 0;
+    while (t[t_len] != '#')
+    {
+        t_len = t_len + 1;
+    }
 
     // 构造next数组
     next[0] = 0;
@@ -84,6 +99,8 @@ int main()
     }
 
     // 输出第一个匹配位置
+    printf("True\n");
+    printf("The pattern string is found at position: ");
     printf("%d", result[0]);
 
     // 输出其余匹配位置
