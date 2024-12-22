@@ -107,9 +107,11 @@ def generate(argv):
 
     visitor = Visitor()
     visitor.visit(tree)
-    # 生成并保存符号表文件名
-    llvm_output_filename = input_filename + ".ll"
-    visitor.save(llvm_output_filename)
+    # 生成并保存 LLVM IR 文件,保存到test/目录下
+    ir_filename = os.path.join('test', f"{input_filename}.ll")
+    visitor.save(ir_filename)
+    
+    
 
 
 
@@ -119,8 +121,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # 输出重定向到文件，便于调试
-    with open('debug.txt', 'w') as f:
+    with open('test/debug.txt', 'w') as f:
         original_stdout = sys.stdout
         sys.stdout = f        
         generate(sys.argv)
         sys
+    

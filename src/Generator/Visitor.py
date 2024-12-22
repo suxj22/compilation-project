@@ -88,8 +88,8 @@ class Visitor(CVisitor):
         print("Identifier name:", name)  
         identifier = self.SymbolTable.get_item(name)  
         if identifier is None:  
-            print(f"Variable {name} not found in symbol table")  
-            raise SemanticError(f"Undefined identifier: {name}")  
+            similar_names = self.SymbolTable.get_similar_names(name)
+            raise SemanticError(f"未定义的变量: {name}", ctx, similar_names)
         
         int8_ptr = ir.PointerType(int8)  
         if identifier.type == int8_ptr:  
@@ -119,8 +119,8 @@ class Visitor(CVisitor):
         
         identifier = self.SymbolTable.get_item(name)  
         if identifier is None:  
-            print(f"Variable {name} not found in symbol table")  
-            raise SemanticError(f"Undefined identifier: {name}")  
+            similar_names = self.SymbolTable.get_similar_names(name)
+            raise SemanticError(f"未定义的变量: {name}", ctx, similar_names)
     
         print("identifier", identifier)  
     
@@ -243,7 +243,8 @@ class Visitor(CVisitor):
             variable = self.SymbolTable.get_item(var_name)
             
             if variable is None:
-                raise SemanticError(f"未定义的变量: {var_name}")
+                similar_names = self.SymbolTable.get_similar_names(var_name)
+                raise SemanticError(f"未定义的变量: {var_name}", ctx, similar_names)
                 
             # 根据是否有&符号决定处理方式    
             has_and = arg_ctx.AND() is not None
@@ -279,8 +280,8 @@ class Visitor(CVisitor):
 
         identifier = self.SymbolTable.get_item(name)
         if identifier is None:
-            print(f"Variable {name} not found in symbol table")
-            raise SemanticError(f"Undefined identifier: {name}")
+            similar_names = self.SymbolTable.get_similar_names(name)
+            raise SemanticError(f"未定义的变量: {name}", ctx, similar_names)
 
         print("identifier", identifier)
         print("identifier type:", identifier.type)  
@@ -363,7 +364,7 @@ class Visitor(CVisitor):
             if ret_type == void:
                 builder.ret_void()
             else:
-                raise SemanticError(f"Function {func_name} must return a value of type {ret_type}")
+                raise SemanticError(f"函数 {func_name} 必须返回一个 {ret_type} 类型的变量")
         
         # 退出作用域
         self.SymbolTable.exit_scope()
@@ -512,9 +513,9 @@ class Visitor(CVisitor):
                                 size = len(val)  
                                 ctype = ir.ArrayType(inner_type, size)  
                             else:  
-                                raise SemanticError(f"Initializer for array '{name}' must be a list")  
+                                raise SemanticError(f"'{name}' 必须是一个数组")  
                         else:  
-                            raise SemanticError(f"Array '{name}' declared without size and no initializer")  
+                            raise SemanticError(f"数组 '{name}' 必须有一个初始化列表")  
                     else:  
                         ctype = ir.ArrayType(inner_type, size)  
                         val = self.visitInitializer(init_d.initializer()) if init_d.initializer() else None  
@@ -837,7 +838,7 @@ class Visitor(CVisitor):
                 if isinstance(val.type, ir.PointerType):
                     val = builder.load(val, name="dereferenced")
                 else:
-                    raise SemanticError("* operator applied to a non-pointer")
+                    raise SemanticError("指针解引用操作符*只能应用于指针类型")
             elif op == '~':
                 val = builder.not_(val)
             return val
@@ -949,7 +950,8 @@ class Visitor(CVisitor):
             if name in self.Funs:
                 print(f"Found function {name}")  # 调试输出
                 return self.Funs[name]
-            
+            similar_names = self.SymbolTable.get_similar_names(name)
+            raise SemanticError(f"未定义的变量: {name}", ctx, similar_names)
             print(f"Variable {name} not found in symbol table")  # 调试输出
             raise SemanticError(f"Undefined identifier: {name}")
         
@@ -978,7 +980,7 @@ class Visitor(CVisitor):
             try:
                 return ir.Constant(double, float(val))
             except ValueError:
-                raise SemanticError(f"Invalid constant: {val}")
+                raise SemanticError(f"使用了无效的常量: {val}")
             
     # 处理字符常量
     def visitCharacterConstant(self, ctx):
@@ -1326,20 +1328,20 @@ class Visitor(CVisitor):
         elif ctx.CONTINUE():
             # 处理 continue
             if not self.loop_stack:
-                raise SemanticError("Continue statement not within a loop")
+                raise SemanticError("Continue 语句不在循环中")
             loop_continue_bb = self.loop_stack[-1]['continue']
             builder.branch(loop_continue_bb)
         elif ctx.BREAK():
             # 处理 break
             if not self.loop_stack:
-                raise SemanticError("Break statement not within a loop")
+                raise SemanticError("Break 语句不在循环中")
             loop_break_bb = self.loop_stack[-1]['break']
             builder.branch(loop_break_bb)
         elif ctx.GOTO():
             # 处理 goto
             label_name = ctx.Identifier().getText()
             if label_name not in self.Funs:
-                raise SemanticError(f"Goto label {label_name} not found")
+                raise SemanticError(f"Goto label {label_name} 没有找到")
             label_bb = self.Funs[label_name].append_basic_block(label_name)
             builder.branch(label_bb)
         return

@@ -111,6 +111,33 @@ class SymbolTable:
     def __init__(self):
         self.scopes = [{}]  # 初始化全局作用域
         self._debug = True  # 用于调试
+    def get_similar_names(self, name, threshold=0.6):
+        """查找相似的变量名"""
+        similar_names = []
+        # 遍历所有作用域中的变量名
+        for scope in self.scopes:
+            for existing_name in scope.keys():
+                # 计算相似度
+                similarity = self.calculate_similarity(name, existing_name)
+                if similarity >= threshold:
+                    similar_names.append((existing_name, similarity))
+        # 按相似度排序
+        similar_names.sort(key=lambda x: x[1], reverse=True)
+        return [name for name, _ in similar_names[:3]]  # 返回前3个最相似的
+
+    def calculate_similarity(self, s1, s2):
+        """计算两个字符串的相似度"""
+        if len(s1) == 0 or len(s2) == 0:
+            return 0.0
+        # 使用最长公共子序列长度计算相似度
+        matrix = [[0] * (len(s2) + 1) for _ in range(len(s1) + 1)]
+        for i in range(1, len(s1) + 1):
+            for j in range(1, len(s2) + 1):
+                if s1[i-1] == s2[j-1]:
+                    matrix[i][j] = matrix[i-1][j-1] + 1
+                else:
+                    matrix[i][j] = max(matrix[i-1][j], matrix[i][j-1])
+        return 2.0 * matrix[-1][-1] / (len(s1) + len(s2))
 
     def enter_scope(self):
         self.scopes.append({})
@@ -130,17 +157,26 @@ class SymbolTable:
         self.scopes[-1][name] = value
 
     def get_item(self, name):
-        # 从内向外查找
+        """获取变量，如果不存在则给出建议"""
         for scope in reversed(self.scopes):
             if name in scope:
                 if self._debug:
-                    print(f"Found symbol: {name} in scope")
+                    print(f"找到变量: {name}")
                 return scope[name]
+                
+        # 变量未找到，给出建议
+        similar_names = self.get_similar_names(name)
+        error_msg = f"错误: 变量 '{name}' 未定义\n"
+        if similar_names:
+            error_msg += "你是否想使用以下变量？\n"
+            for suggestion in similar_names:
+                error_msg += f"  - {suggestion}\n"
+        
         if self._debug:
-            print(f"Symbol not found: {name}")
-            print(f"Current scopes: {[list(scope.keys()) for scope in self.scopes]}")
+            print(error_msg)
+            self.print_scopes()
+            
         return None
-
     def print_scopes(self):
         """用于调试的方法，打印所有作用域的内容"""
         print("\n=== Symbol Table Contents ===")

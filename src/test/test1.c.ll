@@ -153,24 +153,5 @@ cond_merge:
   %".97" = load i32, i32* %"x"
   %".98" = load i32, i32* %"y"
   %".99" = add i32 %".97", %".98"
-  %"sum_xy" = alloca i32
-  store i32 %".99", i32* %"sum_xy"
-  %".101" = getelementptr inbounds [12 x i8], [12 x i8]* @".str", i32 0, i32 0
-  %".102" = load i32, i32* %"sum_xy"
-  %".103" = call i32 (i8*, ...) @"printf"(i8* %".101", i32 %".102")
-  %".104" = zext i8 97 to i32
-  %"chr" = alloca i32
-  store i32 %".104", i32* %"chr"
-  %".106" = getelementptr inbounds [9 x i8], [9 x i8]* @".str.1", i32 0, i32 0
-  %".107" = load i32, i32* %"chr"
-  %".108" = call i32 (i8*, ...) @"printf"(i8* %".106", i32 %".107")
-  %".109" = getelementptr inbounds [4 x i8], [4 x i8]* @".str.2", i32 0, i32 0
-  %".110" = call i32 (i8*, ...) @"printf"(i8* %".109")
-  ret i32 0
+  ret void
 }
-
-declare i32 @"printf"(i8* %".1", ...)
-
-@".str" = private constant [12 x i8] c"sum_xy: %d\0a\00", align 1
-@".str.1" = private constant [9 x i8] c"chr: %c\0a\00", align 1
-@".str.2" = private constant [4 x i8] c"aaa\00", align 1

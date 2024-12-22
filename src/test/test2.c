@@ -9,10 +9,7 @@ void test_all_loops()
 {
     // while 循环
     int i = 0;
-<<<<<<< Updated upstream
-=======
     int while_sum = 0;
->>>>>>> Stashed changes
     while (i < 5)
     {
         i += 1;
@@ -22,10 +19,7 @@ void test_all_loops()
 
     // do-while 循环
     int j = 0;
-<<<<<<< Updated upstream
-=======
     int do_while_sum = 0;
->>>>>>> Stashed changes
     do
     {
         j += 2;
@@ -34,10 +28,7 @@ void test_all_loops()
     printf("Do-while loop sum: %d\n", do_while_sum);
 
     // for 循环
-<<<<<<< Updated upstream
-=======
     int for_sum = 0;
->>>>>>> Stashed changes
     for (int k = 0; k < 5; k += 1)
     {
         // 递归函数调用
@@ -46,10 +37,7 @@ void test_all_loops()
     printf("For loop sum: %d\n", for_sum);
 
     // 嵌套循环
-<<<<<<< Updated upstream
-=======
     int nested_sum = 0;
->>>>>>> Stashed changes
     for (int m = 0; m < 3; m += 1)
     {
         while (i < 10)
@@ -73,10 +61,6 @@ void test_all_loops()
 
 int main()
 {
-<<<<<<< Updated upstream
-    printf(compute_sum(1, 2));
-=======
->>>>>>> Stashed changes
     test_all_loops();
     return 0;
 }
